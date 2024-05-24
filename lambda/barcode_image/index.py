@@ -24,8 +24,8 @@ def generate_product_summary_prompt(
 ):
     return f"""Human:
         You are a nutrition expert. I will give you a nutritional list of a product, as sold per 100 g / 100 ml.
-        What, in your opinion, is the most notable nutritional characteristic? Create a visual representation using actual food items or ingredients.
-        Respond in the form of a prompt in English for image generation. The prompt should describe a clean, professional food photography scene WITHOUT any text, labels, or words visible in the image.
+        What, in your opinion, is the most unhealthy component? You must imagine the quantity of the most unhealthy component in terms of the quotient so that I realize how bad it is.
+        Respond in the form of a prompt in English, which will be used to generate an image in English. Respond only with the prompt.
         -----------------------------------
         Example 1:  
         Nutritional list:
@@ -41,7 +41,7 @@ def generate_product_summary_prompt(
             "salt_100g": "0,107 g"
         
         Response: 
-         A jar of chocolate hazelnut spread surrounded by sugar cubes and hazelnuts on a white background, professional food photography, no text or labels visible.
+         A jar of chocolate hazelnut spread next to 14 cubes of sugar labeled "diabetes danger".
         
         -------------------------------------
         Example 2:
@@ -59,7 +59,7 @@ def generate_product_summary_prompt(
                 "proteins_100g": "12,5",
                 "salt_100g": "1,02"
 
-        Response: A hamburger with a small pile of salt crystals beside it, professional food photography, clean white background, no text visible.
+        Response: "an hamburger and an evil teaspoon full of salt"
         -------------------------------------
         Example 3
         Liste nutritionnelle:
@@ -75,7 +75,7 @@ def generate_product_summary_prompt(
                 "fiber_100g": "3.5", 
                 "proteins_100g": "6.1", 
                 "salt_100g": "1.2"
-        Response: Barbecue potato chips in a bowl with salt crystals scattered around, professional food photography, no text or labels.
+        Response:  "barbecue potato chips and a salt shaker"
 
         -------------------------------------
 
@@ -87,9 +87,8 @@ def generate_product_summary_prompt(
         Assistant:"""
 
 def get_bedrock_text_reponse(response):
-    response_body = json.loads(response.get("body").read())
-
-    text = response_body.get("content")[0].get("text")
+    response = json.loads(response.get("body").read())
+    text = response.get("completion")
     
 
     return text
@@ -98,20 +97,19 @@ def get_bedrock_text_reponse(response):
 def query_bedrock(payload, model_id):
     try:
         response = bedrock.invoke_model(
-            body=payload,
+            body=json.dumps(payload),
             modelId=model_id,
             contentType="application/json",
             accept="*/*",
-            performanceConfigLatency='standard',
         )
-        logger.debug("Bedrock response: %s", response)
+        print(response)
         input_token_count = response["ResponseMetadata"]["HTTPHeaders"]["x-amzn-bedrock-input-token-count"]
         output_token_count = response["ResponseMetadata"]["HTTPHeaders"]["x-amzn-bedrock-output-token-count"]
         logger.debug("Input_tokens = {}, Output_tokens = {}".format(input_token_count, output_token_count))
 
         return response
     except ClientError as error:
-        logger.error(error.response)
+        print(error.response)
     return None
 
     
@@ -127,40 +125,33 @@ def get_image(prompt):
     """
 
     body=json.dumps({
-        "taskType": "TEXT_IMAGE",
-        "textToImageParams": {
-            "text": f"{prompt}, professional food photography, studio lighting, clean composition, high resolution, editorial quality, commercial product photography style",
-            "negativeText": "text, words, letters, labels, writing, typography, captions, watermarks, logos, signs, numbers, alphabet"
-        },
-        "imageGenerationConfig": {
-            "numberOfImages": 1,
-            "quality": "premium",
-            "height": 1024,
-            "width": 1024,
-            "cfgScale": 8.0,
-            "seed": 0
+        "text_prompts": [
+        {
+        "text": prompt
         }
+    ],
+    "cfg_scale": 10,
+    "seed": 0,
+    "steps": 35,
+    "samples" : 1,
+    "style_preset" : "photographic"
     })
 
    
     accept = "application/json"
     content_type = "application/json"
-    model_id = 'amazon.nova-canvas-v1:0'
+    model_id = 'stability.stable-diffusion-xl-v1'
 
-    logger.debug(f"Generating image with Nova Canvas model {model_id}")
+    print("Generating image with SDXL model %s", model_id)
 
     response = bedrock.invoke_model(
-        body=body,
-        modelId=model_id,
-        accept=accept,
-        contentType=content_type,
-        performanceConfigLatency='standard'
+        body=body, modelId=model_id, accept=accept, contentType=content_type
     )
     response_body = json.loads(response.get("body").read())
 
-    base64_image = response_body.get("images")[0]
+    base64_image = response_body.get("artifacts")[0].get("base64")
 
-    logger.debug("Successfully generated image with Nova Canvas model %s", model_id)
+    print("Successfully generated image withvthe SDXL 1.0 model %s", model_id)
 
     return base64_image
     
@@ -203,7 +194,7 @@ def get_product_from_db(product_code, language):
         else:
             return None, None, None
     except Exception as e:
-        logger.error("Error: get_product_from_db", e)
+        print("Error: get_product_from_db", e)
         return None, None, None
 
 def generate_combined_string(obj):
@@ -235,31 +226,17 @@ def calculate_hash(product_code, user_allergies, user_preference_data,  language
 
 def call_bedrock(prompt_text):
 
-    prompt_config = {
-        "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 10000,
+    #print(prompt_text)
+    model_id = "anthropic.claude-instant-v1"
+    model_kwargs_text = {
+        "max_tokens_to_sample": 10000,
         "temperature": 0.5,
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {
-                    "type": "text",
-                    "text": prompt_text
-                }
-                ],
-            }
-        ],
+        "top_p": 0.9,
+        "prompt": prompt_text,
     }
-
-    body = json.dumps(prompt_config)
-
-    modelId = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
-
     response = get_bedrock_text_reponse(
-            query_bedrock(payload=body, model_id=modelId)
+            query_bedrock(payload=model_kwargs_text, model_id=model_id)
     )
-    
     return response
 
 def upload_image_to_s3(image_bytes):
@@ -271,7 +248,7 @@ def upload_image_to_s3(image_bytes):
 
     s3.put_object(Body=image_bytes, Bucket=S3_BUCKET_NAME, Key=s3_key)
 
-    logger.debug("Uploaded image: %s", file_name)
+    print("Uploaded image:", file_name)
 
     return f"img/{file_name}"
 
@@ -299,9 +276,9 @@ def put_product_image_to_dynamodb(product_code, params_hash, image_url):
 
 def get_image_url(product_code, params_hash):
     # Get reference to the table
-    logger.debug("PRODUCT_SUMMARY_TABLE_NAME="+PRODUCT_SUMMARY_TABLE_NAME)
+    print("PRODUCT_SUMMARY_TABLE_NAME="+PRODUCT_SUMMARY_TABLE_NAME)
     table = dynamodb.Table(PRODUCT_SUMMARY_TABLE_NAME)
-    logger.debug("GET imageUrl, product_code="+product_code+", params_hash="+params_hash)
+    print("GET imageUrl, product_code="+product_code+", params_hash="+params_hash)
     # Perform a query to retrieve the item
     response = table.get_item(
         Key={
@@ -311,7 +288,7 @@ def get_image_url(product_code, params_hash):
         ConsistentRead=True
         
     )
-    logger.debug("DynamoDB response: %s", response)
+    print(response)
     # Check if the 'imageUrl' attribute exists in the response
     if 'Item' in response:
         if 'imageUrl' in response['Item']:
@@ -353,7 +330,7 @@ def handler(event, context):
                 put_product_image_to_dynamodb(product_code, hash_value, image_url)
 
             response = {"imageUrl": "/" + image_url}
-            logger.debug("Response: %s", response)
+            logger.debug("Response", extra=response)
 
             return {
                 "statusCode": 200, 
@@ -366,32 +343,13 @@ def handler(event, context):
             }
 
         else:
-            logger.debug("Product not found in the database - needs to be scanned first")
-            return {
-                "statusCode": 202,
-                "body": json.dumps({"message": "Product data is being fetched. Please try again in a moment."}),
-                "headers": {
-                    "Access-Control-Allow-Headers": "*",
-                    "Access-Control-Allow-Origin": "*",
-                    "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
-                },
-            }
-    except ProductNotFoundException as e:
-            logger.error("Product not found: %s", e)
-            return {
-            "statusCode": 404,
-            "body": json.dumps({"error": str(e)}),
-            "headers": {
-                "Access-Control-Allow-Headers": "*",
-                "Access-Control-Allow-Origin": "*",
-                "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
-            },
-        }
+            logger.debug("Product not found in the database")
+            raise ProductNotFoundException("Product not found.")
     except Exception as e:
-            logger.error("Error: %s", e)
+            print("Error:", e)
             return {
             "statusCode": 500,
-            "body": json.dumps({"error": "Unknown error"}),
+            "body": json.dumps({"error": "Unwnown error"}),
             "headers": {
                 "Access-Control-Allow-Headers": "*",
                 "Access-Control-Allow-Origin": "*",

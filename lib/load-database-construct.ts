@@ -8,49 +8,31 @@ import {
   aws_codebuild as codebuild,
   aws_logs as logs,
   aws_iam as iam,
-  aws_kms as kms,
   RemovalPolicy,
-  Duration,
 } from "aws-cdk-lib";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { LogLevel } from "aws-cdk-lib/aws-stepfunctions";
-import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 
 export class LoadDatabase extends Construct {
-  constructor(scope: Construct, id: string, tableToLoad: dynamodb.Table, stackName: string, accessLogsBucket?: s3.IBucket, logEncryptionKey?: kms.IKey) {
+  constructor(scope: Construct, id: string, tableToLoad: dynamodb.Table, stackName: string) {
     super(scope, id);
 
     const loadSourceCode = new s3.Bucket(this, "LoadSourceCode", {
       enforceSSL: true,
       encryption: s3.BucketEncryption.S3_MANAGED,
-      versioned: true,
       blockPublicAccess: new s3.BlockPublicAccess({
         blockPublicPolicy: true,
         blockPublicAcls: true,
         ignorePublicAcls: true,
         restrictPublicBuckets: true,
       }),
-      ...(accessLogsBucket && {
-        serverAccessLogsBucket: accessLogsBucket,
-        serverAccessLogsPrefix: "load-source-logs/",
-      }),
-      lifecycleRules: [{ noncurrentVersionExpiration: Duration.days(30) }],
-    });
-
-    const codeBuildKey = new kms.Key(this, "CodeBuildKey", {
-      enableKeyRotation: true,
-      description: "KMS key for CodeBuild project encryption",
     });
 
     const codebuildProject = new codebuild.Project(this, "Project", {
-      encryptionKey: codeBuildKey,
       logging: {
         cloudWatch: {
-          logGroup: new logs.LogGroup(this, `MyLogGroup`, {
-            retention: RetentionDays.ONE_YEAR,
-            ...(logEncryptionKey && { encryptionKey: logEncryptionKey }),
-          }),
+          logGroup: new logs.LogGroup(this, `MyLogGroup`),
         },
       },
       projectName: "CrawlProject" + Aws.STACK_NAME,
@@ -93,8 +75,6 @@ export class LoadDatabase extends Construct {
     new s3deploy.BucketDeployment(this, "DeploySrcCode", {
       sources: [s3deploy.Source.asset("scripts/")],
       destinationBucket: loadSourceCode,
-      memoryLimit: 2048,
-      ephemeralStorageSize: cdk.Size.mebibytes(1024),
     });
 
     const loadTask = new tasks.CodeBuildStartBuild(
@@ -120,8 +100,7 @@ export class LoadDatabase extends Construct {
     const sfnLog = new LogGroup(this, "sfnLog", {
       logGroupName: "/aws/vendedlogs/states/" + Aws.STACK_NAME,
       removalPolicy: RemovalPolicy.DESTROY,
-      retention: RetentionDays.ONE_YEAR,
-      ...(logEncryptionKey && { encryptionKey: logEncryptionKey }),
+      retention: RetentionDays.ONE_WEEK,
     });
 
     const stepFunction = new sfn.StateMachine(this, "LoadDatabase", {

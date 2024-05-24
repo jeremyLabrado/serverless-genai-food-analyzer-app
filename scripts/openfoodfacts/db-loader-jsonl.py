@@ -30,8 +30,7 @@ def describe_stack_output(stack_name, output_key):
 
 def download_file(url, filename):
     # Stream=True ensures that the file is not downloaded all at once into memory
-    response = requests.get(url, stream=True, timeout=30)
-    response.raise_for_status()
+    response = requests.get(url, stream=True)
     total_size = int(response.headers.get('content-length', 0))
     block_size = 1024*1000  # 1 Mb
     progress_bar = tqdm(total=total_size, unit='B', unit_scale=True)
@@ -114,7 +113,7 @@ if __name__ == "__main__":
     # Retrieve the value for the specified output key
     table_name = describe_stack_output(stack_name, output_key)
     if table_name:
-        with open(gz_filename[:-3], encoding="utf-8") as f:
+        with open(gz_filename[:-3]) as f:
             try:
                 uploaded, skipped = fill_table(table_name, f)
                 print(f"Uploaded {uploaded} products to the table.")

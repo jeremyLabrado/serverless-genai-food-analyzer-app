@@ -49,7 +49,6 @@ export default function AppConfigured() {
             alignItems: "center",
           }}
         >
-{/* nosemgrep: jsx-not-internationalized -- Demo app, i18n not required */}
           <Alert heading="Configuration error" variation="error">
             Error loading configuration from "
             <a href="/aws-exports.json" style={{ fontWeight: "600" }}>
@@ -71,7 +70,6 @@ export default function AppConfigured() {
           alignItems: "center",
         }}
       >
-{/* nosemgrep: jsx-not-internationalized -- Demo app, i18n not required */}
         <StatusIndicator type="loading">Loading</StatusIndicator>
       </div>
     );
@@ -84,13 +82,12 @@ export default function AppConfigured() {
         components={{
           SignIn: {
             Header: () => {
-{/* nosemgrep: jsx-not-internationalized -- Demo app, i18n not required */}
               return (
                 <Heading
                   padding={`${tokens.space.xl} 0 0 ${tokens.space.xl}`}
                   level={3}
                 >
-                  Food Analyzer
+                  FoodLens
                 </Heading>
               );
             },
