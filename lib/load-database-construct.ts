@@ -8,7 +8,6 @@ import {
   aws_codebuild as codebuild,
   aws_logs as logs,
   aws_iam as iam,
-  aws_kms as kms,
   RemovalPolicy,
   Duration,
 } from "aws-cdk-lib";
@@ -18,7 +17,7 @@ import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 
 export class LoadDatabase extends Construct {
-  constructor(scope: Construct, id: string, tableToLoad: dynamodb.Table, stackName: string, accessLogsBucket?: s3.IBucket) {
+  constructor(scope: Construct, id: string, tableToLoad: dynamodb.Table, stackName: string) {
     super(scope, id);
 
     const loadSourceCode = new s3.Bucket(this, "LoadSourceCode", {
@@ -31,19 +30,9 @@ export class LoadDatabase extends Construct {
         ignorePublicAcls: true,
         restrictPublicBuckets: true,
       }),
-      ...(accessLogsBucket && {
-        serverAccessLogsBucket: accessLogsBucket,
-        serverAccessLogsPrefix: "load-source-logs/",
-      }),
-    });
-
-    const codeBuildKey = new kms.Key(this, "CodeBuildKey", {
-      enableKeyRotation: true,
-      description: "KMS key for CodeBuild project encryption",
     });
 
     const codebuildProject = new codebuild.Project(this, "Project", {
-      encryptionKey: codeBuildKey,
       logging: {
         cloudWatch: {
           logGroup: new logs.LogGroup(this, `MyLogGroup`, {

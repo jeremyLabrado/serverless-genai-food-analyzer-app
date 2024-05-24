@@ -11,7 +11,7 @@ const dynamodb = new DynamoDBClient({});
 
 const PRODUCT_TABLE_NAME = process.env.PRODUCT_TABLE_NAME
 const PRODUCT_SUMMARY_TABLE_NAME = process.env.PRODUCT_SUMMARY_TABLE_NAME
-const MODEL_ID = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+const MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
 
 
 
@@ -38,14 +38,6 @@ interface ProductItem {
     product_name?: string;
     ingredients?: string;
     additives?: string;
-    allergens_tags?: string[];
-    nutriments?: any;
-    labels_tags?: string[];
-    categories?: string;
-    nova_group?: number;
-    nutriscore_grade?: string;
-    ecoscore_grade?: string;
-    brands?: string;
 }
 
 interface ProductSummaryItem {
@@ -64,123 +56,59 @@ interface SummaryData {
 function generateProductSummaryPrompt(
     userAllergies: string,
     userPreference: string,
-    userHealthGoal: string,
-    userReligion: string,
     productIngredients: string,
     productName: string,
-    productAllergens: string[],
-    productNutriments: any,
-    productLabels: string[],
-    productCategories: string,
-    language: string,
-    nova_group?: number,
-    nutriscore_grade?: string,
-    ecoscore_grade?: string,
-    brands?: string
+    language: string
     ): string {
-    
-    // Format nutriments for display
-    let nutrimentInfo = '';
-    if (productNutriments && Object.keys(productNutriments).length > 0) {
-        nutrimentInfo = '\n<nutrition_per_100g>\n';
-        if (productNutriments['energy-kcal_100g']) nutrimentInfo += `Calories: ${productNutriments['energy-kcal_100g']} kcal\n`;
-        if (productNutriments['carbohydrates_100g']) nutrimentInfo += `Carbohydrates: ${productNutriments['carbohydrates_100g']}g\n`;
-        if (productNutriments['sugars_100g']) nutrimentInfo += `Sugars: ${productNutriments['sugars_100g']}g\n`;
-        if (productNutriments['fat_100g']) nutrimentInfo += `Fat: ${productNutriments['fat_100g']}g\n`;
-        if (productNutriments['saturated-fat_100g']) nutrimentInfo += `Saturated Fat: ${productNutriments['saturated-fat_100g']}g\n`;
-        if (productNutriments['proteins_100g']) nutrimentInfo += `Protein: ${productNutriments['proteins_100g']}g\n`;
-        if (productNutriments['fiber_100g']) nutrimentInfo += `Fiber: ${productNutriments['fiber_100g']}g\n`;
-        if (productNutriments['salt_100g']) nutrimentInfo += `Salt: ${productNutriments['salt_100g']}g\n`;
-        nutrimentInfo += '</nutrition_per_100g>\n';
-    }
-    
-    // Format allergens - only if user has allergies
-    let allergenInfo = '';
-    if (userAllergies && productAllergens && productAllergens.length > 0) {
-        allergenInfo = `\n<product_allergens>${productAllergens.join(', ')}</product_allergens>\n`;
-    }
-    
-    // Format labels
-    let labelInfo = '';
-    if (productLabels && productLabels.length > 0) {
-        labelInfo = `\n<product_labels>${productLabels.join(', ')}</product_labels>\n`;
-    }
-    
-    // Format categories
-    let categoryInfo = '';
-    if (productCategories) {
-        categoryInfo = `\n<product_categories>${productCategories}</product_categories>\n`;
-    }
-    
-    // Format quality indicators (only if present and relevant)
-    let qualityInfo = '';
-    if (userHealthGoal && (nova_group === 4 || nutriscore_grade === 'd' || nutriscore_grade === 'e')) {
-        qualityInfo = '\n<product_quality>\n';
-        if (nova_group === 4) qualityInfo += 'Processing: Ultra-processed (NOVA 4)\n';
-        if (nutriscore_grade === 'd' || nutriscore_grade === 'e') {
-            qualityInfo += `Nutri-Score: ${nutriscore_grade.toUpperCase()} (lower nutritional quality)\n`;
-        }
-        qualityInfo += '</product_quality>\n';
-    }
-    
-    // Build instructions based on what user has set
-    let instructions = `You are a nutrition expert providing recommendations about a specific product.
-
-    Your task:
-    `;
-    
-    if (userAllergies) {
-        instructions += `1. CRITICAL: Check if any product allergens match the user's allergies (${userAllergies}). If there is a match, prominently warn the user.\n`;
-    }
-    
-    if (userPreference) {
-        instructions += `${userAllergies ? '2' : '1'}. Check if product labels match dietary preferences (${userPreference}). Use labels for direct matching, or analyze categories and ingredients.\n`;
-    }
-    
-    if (userHealthGoal) {
-        instructions += `${(userAllergies ? 1 : 0) + (userPreference ? 1 : 0) + 1}. Use nutritional data to assess if the product aligns with the health goal: ${userHealthGoal}.\n`;
-        if (nova_group === 4 || nutriscore_grade === 'd' || nutriscore_grade === 'e') {
-            instructions += `   - Consider the product quality indicators when making recommendations.\n`;
-        }
-    }
-    
-    if (userReligion) {
-        instructions += `${(userAllergies ? 1 : 0) + (userPreference ? 1 : 0) + (userHealthGoal ? 1 : 0) + 1}. Check if product labels match religious requirement: ${userReligion}.\n`;
-    }
-    
-    instructions += `- Present three nutritional benefits and three nutritional disadvantages for the product based on actual nutritionalvalues.
-    If the user's information is not provided or is empty, offer general nutritional advice based on the product's nutritional data.
-    IMPORTANT: Only mention allergens, dietary preferences, health goals, or religious requirements if the user has specified them. Do not discuss aspects the user hasn't set.`;
-    
-    let userContext = '';
-    // nosemgrep: html-in-template-string -- These are XML-like tags in an LLM prompt sent to Bedrock, not browser HTML
-    if (userAllergies) userContext += `\n<user_allergies>${userAllergies}</user_allergies>`;
-    if (userHealthGoal) userContext += `\n<user_health_goal>${userHealthGoal}</user_health_goal>`;
-    if (userPreference) userContext += `\n<user_dietary_preferences>${userPreference}</user_dietary_preferences>`;
-    if (userReligion) userContext += `\n<user_religious_requirement>${userReligion}</user_religious_requirement>`;
-    
-    // nosemgrep: html-in-template-string -- LLM prompt template with XML-like tags, not rendered HTML
     return `Human:
-          ${instructions}
-  
-          Provide recommendation for the following product:
-            <product_name>${productName}</product_name>
-            <product_ingredients>${productIngredients}</product_ingredients>
-            <allergenInfo>${allergenInfo}</allergenInfo>
-            <labelInfo>${labelInfo}</labelInfo>
-            <categoryInfo>${categoryInfo}</categoryInfo>
-            <nutrimentInfo>${nutrimentInfo}</nutrimentInfo>
-            ${qualityInfo}
+          You are a nutrition expert with the task to provide recommendations about a specific product for the user based on the user's allergies and preferences. 
+          Your task involves the following steps:
 
-          For the user:
-            ${userContext}
-          
+          1. Use the user's allergy information, if provided, to ensure that the ingredients in the product are suitable for the user.
+          2. Use the user's preferences, if provided, to ensure that the user will enjoy the product. Note that the product can contain additives listed in the additives. Make sure these additives are compatible with user allergies and preferences.
+          3. Present three benefits and three disadvantages for the product, ensuring that each list consists of precisely three points.
+          4. Provide nutritional recommendations for the product based on its ingredients and the user's needs.
+  
+          If the user's allergy information or preferences are not provided or are empty, offer general nutritional advice on the product.
+  
+          Example:
+          <product_name>Chocolate and hazelnut spread</product_name>
+          <product_ingredients>
+          {{
+              Sucre, sirop de glucose, NOISETTES entières torréfiées, matières grasses végétales (palme, karité), beurre de cacao¹, LAIT entier en poudre, PETIT-LAIT filtré en poudre, LAIT écrémé concentré sucré (LAIT écrémé, sucre), sirop de glucose-fructose, pâte de cacao¹, blancs d'ŒUFS en poudre, émulsifiant (lécithines). Peut contenir ARACHIDES, autres FRUITS À COQUE (AMANDES, NOIX DE CAJOU, NOIX DE PECAN) et SOJA. ¹Bilan massique certifié Rainforest Alliance. www.ra.org/fr.
+          }}
+          </product_ingredients>
+          <user_allergies></user_allergies>
+          <user_preferences>I don't like chocolate</user_preferences>
+          </example>
+          Response: 
+          <data>
+              <recommendations>
+                  <recommendation>
+                  Although Nutella contains a small amount of calcium and iron, it's not very nutritious and high in sugar, calories and fat.
+                  </recommendation>
+              </recommendations>
+              <benefits>
+                  <benefit>{{benefit}}</benefit>
+              </benefits>
+              <disadvantages>
+                  <disadvantage>{{disadvantage}}</disadvantage>
+              </disadvantages>                 
+          </data>
+  
+          Provide recommendation for the following product
+          <product_name>${productName}</product_name>
+          <product_ingredients>
+          ${productIngredients}
+          </product_ingredients>
+          <user_allergies>${userAllergies}</user_allergies>
+          <user_preferences>${userPreference}</user_preferences>
           Provide the response in the third person, in ${language}, skip the preambule, disregard any content at the end and provide only the response in this Markdown format:
 
 
         markdown
 
-        Describe allergen warnings (if any), dietary label compatibility, religious requirement compatibility, health goal compatibility, dietary preference compatibility, and recommendation here combined in one single short paragraph
+        Describe potential_health_issues, preference_matter and recommendation here combines in one single short paragraph
 
         #### Benefits title here
         - Describe benefits here
@@ -234,9 +162,9 @@ function calculateHash(
  *
  * @param productCode - The code of the product to retrieve information for.
  * @param language - The language for the product information.
- * @returns A tuple containing product name, ingredients, additives, allergens, nutriments, labels, categories, nova_group, nutriscore_grade, ecoscore_grade, and brands if the product is found in the database; otherwise, returns [null, null, null, null, null, null, null, null, null, null, null].
+ * @returns A tuple containing product name, ingredients, and additives if the product is found in the database; otherwise, returns [null, null, null].
  */
-async function getProductFromDb(productCode: string, language: string): Promise<[string | null, string | null, string | null, string[] | null, any | null, string[] | null, string | null, number | null, string | null, string | null, string | null]> {
+async function getProductFromDb(productCode: string, language: string): Promise<[string | null, string | null, string | null]> {
 
     try {
         const { Item  = {} } = await dynamodb.send(new GetItemCommand({
@@ -249,25 +177,13 @@ async function getProductFromDb(productCode: string, language: string): Promise<
         // Check if the item exists
         if (Item) {
             const item = unmarshall(Item) as ProductItem;
-            return [
-                item.product_name || null, 
-                item.ingredients || null, 
-                item.additives || null,
-                item.allergens_tags || null,
-                item.nutriments || null,
-                item.labels_tags || null,
-                item.categories || null,
-                item.nova_group || null,
-                item.nutriscore_grade || null,
-                item.ecoscore_grade || null,
-                item.brands || null
-            ];
+            return [item.product_name || null, item.ingredients || null, item.additives || null];
         } else {
-            return [null, null, null, null, null, null, null, null, null, null, null];
+            return [null, null, null];
         }
     } catch (e) {
         console.error('Error while getting the Product from database', e);
-        return [null, null, null, null, null, null, null, null, null, null, null];
+        return [null, null, null];
     }
 }
 
@@ -296,7 +212,7 @@ async function getProductSummary(productCode: string, paramsHash: string): Promi
     }
 }
 
-async function generateSummary(promptText: string, responseStream: NodeJS.WritableStream) {
+async function generateSummary(promptText, responseStream) {
 
     const payload = {
         messages: [
@@ -319,7 +235,6 @@ async function generateSummary(promptText: string, responseStream: NodeJS.Writab
         contentType: "application/json",
         accept: "application/json",
         body: JSON.stringify(payload),
-        performanceConfigLatency: 'standard' as const
     };
     let completion = '';
     try {
@@ -355,7 +270,7 @@ async function generateSummary(promptText: string, responseStream: NodeJS.Writab
     return completion;
 }
 
-async function simulateSummaryStreaming(content: string, responseStream: NodeJS.WritableStream): Promise<void> {
+async function simulateSummaryStreaming(content: string, responseStream): Promise<void> {
    
     const chunks = [];
     let remainingContent = content;
@@ -402,7 +317,7 @@ async function putProductSummaryToDynamoDB(product_code: string, params_hash: st
     }
 }
 
-async function messageHandler (event: APIGatewayProxyEventV2, responseStream: NodeJS.WritableStream) {
+async function messageHandler (event, responseStream) {
 
     try {
         logger.info(event as any);
@@ -413,14 +328,12 @@ async function messageHandler (event: APIGatewayProxyEventV2, responseStream: No
 
         const userPreferenceKeys = Object.keys(body.preferences).filter(key => body.preferences[key]);
         const userAllergiesKeys = Object.keys(body.allergies).filter(key => body.allergies[key]);
-        const userHealthGoal = body.healthGoal || '';
-        const userReligion = body.religion || '';
 
         const userPreferenceString = userPreferenceKeys.join(', ');
         const userAllergiesString = userAllergiesKeys.join(', ');
 
 
-        const [productName, productIngredients, productAdditives, productAllergens, productNutriments, productLabels, productCategories, nova_group, nutriscore_grade, ecoscore_grade, brands] = await getProductFromDb(productCode, language);
+        const [productName, productIngredients, productAdditives] = await getProductFromDb(productCode, language);
         if (productName && productIngredients) {
             logger.info("Product found");
 
@@ -441,19 +354,9 @@ async function messageHandler (event: APIGatewayProxyEventV2, responseStream: No
             const promptText = generateProductSummaryPrompt(
                 userAllergiesString,
                 userPreferenceString,
-                userHealthGoal,
-                userReligion,
                 ingredientsString,
                 productName,
-                productAllergens || [],
-                productNutriments || {},
-                productLabels || [],
-                productCategories || '',
-                language!,
-                nova_group || undefined,
-                nutriscore_grade || undefined,
-                ecoscore_grade || undefined,
-                brands || undefined
+                language!
             );
             productSummary = await generateSummary(promptText, responseStream);
             await putProductSummaryToDynamoDB(productCode, hashValue, productSummary);

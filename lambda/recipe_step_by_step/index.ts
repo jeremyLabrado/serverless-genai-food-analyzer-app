@@ -17,7 +17,7 @@ declare global {
 }
 
 
-const MODEL_ID = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+const MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
 
 const tracer = new Tracer();
 const logger = new Logger();
@@ -29,7 +29,7 @@ const bedrockRuntimeClient = new BedrockRuntimeClient({ region: process.env.REGI
 
 
 
-async function generateRecipeSteps(language: string, recipe: any, responseStream: NodeJS.WritableStream) {
+async function generateRecipeSteps(language: string, recipe, responseStream) {
 
     const systemPrompt = "Your task is to generate personalized recipe ideas based on the user's input of available ingredients and dietary preferences. Use this information to suggest a variety of creative and delicious recipes that can be made using the given ingredients while accommodating the user's dietary needs, if any are mentioned. For each recipe, provide a brief description, a list of required ingredients, and a simple set of instructions. Ensure that the recipes are easy to follow, nutritious, and can be prepared with minimal additional ingredients or equipment.";
 
@@ -89,7 +89,6 @@ async function generateRecipeSteps(language: string, recipe: any, responseStream
         contentType: "application/json",
         accept: "application/json",
         body: JSON.stringify(payload),
-        performanceConfigLatency: 'standard' as const
     };
     let completion = '';
     try {
@@ -152,7 +151,7 @@ async function generateRecipeSteps(language: string, recipe: any, responseStream
 
 
 
-async function messageHandler (event: APIGatewayProxyEventV2, responseStream: NodeJS.WritableStream) {
+async function messageHandler (event, responseStream) {
 
     try {
         logger.info(event as any);
