@@ -415,28 +415,11 @@ export class FoodAnalyzerStack extends Stack {
         handler: "index.handler",
         code: lambda.Code.fromAsset("lambda/barcode_ingredients", {
           bundling: {
-            image: DockerImage.fromRegistry("public.ecr.aws/sam/build-python3.14:latest"),
+            image: lambda.Runtime.PYTHON_3_12.bundlingImage,
             command: [
               "bash", "-c",
               "pip install -r requirements.txt -t /asset-output && cp -au . /asset-output"
             ],
-            local: {
-              tryBundle(outputDir: string) {
-                try {
-                  execSync(
-                    `pip3 install -r requirements.txt -t "${outputDir}" --quiet`,
-                    { cwd: path.join(__dirname, "../lambda/barcode_ingredients"), stdio: "inherit" }
-                  );
-                  Utils.copyDirRecursive(
-                    path.join(__dirname, "../lambda/barcode_ingredients"),
-                    outputDir
-                  );
-                  return true;
-                } catch {
-                  return false;
-                }
-              },
-            },
           },
         }),
         memorySize: 10240,
