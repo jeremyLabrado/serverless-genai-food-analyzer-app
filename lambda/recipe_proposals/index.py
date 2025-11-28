@@ -27,9 +27,18 @@ logger = Logger()
 
 def call_bedrock_thread(prompt, model_id, accept, content_type):
     body=json.dumps({
-        "text_prompts": [
-        {
-        "text": f"Close up picture of tasty {prompt}"
+        "taskType": "TEXT_IMAGE",
+        "textToImageParams": {
+            "text": f"Professional food photography of {prompt}, styled for cookbook, natural lighting, shallow depth of field, appetizing presentation on elegant plate, high resolution, culinary magazine quality",
+            "negativeText": "text, words, letters, labels, writing, typography, captions, watermarks, logos, signs, numbers, alphabet"
+        },
+        "imageGenerationConfig": {
+            "numberOfImages": 1,
+            "quality": "premium",
+            "height": 1024,
+            "width": 1024,
+            "cfgScale": 8.0,
+            "seed": 0
         }
     ],
     "cfg_scale": 10,
