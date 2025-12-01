@@ -223,6 +223,31 @@ The output format is a Markdown file to faciliate the display of the recipe on t
 
 - **Solution**: The same prompt is utilized, but the LLM is instructed to generate the output in a specific language, catering to the user's language preference (English/French).
 
+**Direct Allergen Detection and Nutritional Analysis**
+
+- **Challenge**: Ensuring accurate allergen warnings and providing quantitative nutritional recommendations based on user health goals.
+
+- **Solution**: Integrated Open Food Facts API to retrieve `allergens_tags` and `nutriments` fields. The app filters key nutritional data (calories, sugars, fats, proteins, salt, fiber) and stores them in DynamoDB. Product summaries now include:
+  - Direct allergen detection with prominent warnings
+  - Specific nutritional values (e.g., "539 kcal/100g", "56.3g sugars")
+  - Health goal-specific recommendations (weight loss, muscle gain, etc.)
+  - Dietary preference compatibility (keto, low carb, low sodium)
+  
+  A custom `DecimalEncoder` handles DynamoDB Decimal type serialization to JSON, ensuring proper data formatting in API responses.
+
+**Dietary Labels and Religious Requirements**
+
+- **Challenge**: Accurately identifying vegan, vegetarian, halal, and kosher products without relying solely on ingredient text parsing.
+
+- **Solution**: Integrated `labels_tags` and `categories` fields from Open Food Facts API. The app now provides:
+  - Direct vegan/vegetarian detection from product labels
+  - Halal and kosher certification identification
+  - Category-based product context for better recommendations
+  - Religious requirement matching with clear certification status
+  - Fallback to ingredient analysis when labels are unavailable
+  
+  This reduces LLM hallucination and provides more confident dietary and religious compatibility assessments.
+
 
 
 ## Key Technical Features
