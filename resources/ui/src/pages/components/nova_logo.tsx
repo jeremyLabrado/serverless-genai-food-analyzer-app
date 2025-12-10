@@ -10,7 +10,6 @@ export const NovaLogo: React.FC<NovaLogoProps> = ({ group, size = 120 }) => {
   return (
     <svg width={size} height={size * 1.5} viewBox="0 0 160 240" xmlns="http://www.w3.org/2000/svg">
       {/* NOVA text */}
-{/* nosemgrep: jsx-not-internationalized -- Demo app, i18n not required */}
       <text x="80" y="40" fontSize="36" fontWeight="bold" fill="#808080" textAnchor="middle" fontFamily="Arial">
         NOVA
       </text>

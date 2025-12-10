@@ -12,7 +12,6 @@ export const NutriScoreLogo: React.FC<NutriScoreLogoProps> = ({ grade, size = 20
       <rect width="264" height="105" rx="8" fill="#f0f0f0"/>
       
       {/* NUTRI-SCORE text */}
-{/* nosemgrep: jsx-not-internationalized -- Demo app, i18n not required */}
       <text x="132" y="25" fontSize="14" fontWeight="bold" fill="#999" textAnchor="middle" fontFamily="Arial">
         NUTRI-SCORE
       </text>
