@@ -42,6 +42,10 @@ interface ProductItem {
     nutriments?: any;
     labels_tags?: string[];
     categories?: string;
+    nova_group?: number;
+    nutriscore_grade?: string;
+    ecoscore_grade?: string;
+    brands?: string;
 }
 
 interface ProductSummaryItem {
@@ -68,7 +72,11 @@ function generateProductSummaryPrompt(
     productNutriments: any,
     productLabels: string[],
     productCategories: string,
-    language: string
+    language: string,
+    nova_group?: number,
+    nutriscore_grade?: string,
+    ecoscore_grade?: string,
+    brands?: string
     ): string {
     
     // Format nutriments for display
@@ -104,9 +112,63 @@ function generateProductSummaryPrompt(
         categoryInfo = `\n<product_categories>${productCategories}</product_categories>\n`;
     }
     
+    // Format quality indicators (only if present and relevant)
+    let qualityInfo = '';
+    if (userHealthGoal && (nova_group === 4 || nutriscore_grade === 'd' || nutriscore_grade === 'e')) {
+        qualityInfo = '\n<product_quality>\n';
+        if (nova_group === 4) qualityInfo += 'Processing: Ultra-processed (NOVA 4)\n';
+        if (nutriscore_grade === 'd' || nutriscore_grade === 'e') {
+            qualityInfo += `Nutri-Score: ${nutriscore_grade.toUpperCase()} (lower nutritional quality)\n`;
+        }
+        qualityInfo += '</product_quality>\n';
+    }
+    
+    // Build instructions based on what user has set
+    let instructions = `You are a nutrition expert providing recommendations about a specific product.
+
+    Your task:
+    `;
+    
+    if (userAllergies) {
+        instructions += `1. CRITICAL: Check if any product allergens match the user's allergies (${userAllergies}). If there is a match, prominently warn the user.\n`;
+    }
+    
+    if (userPreference) {
+        instructions += `${userAllergies ? '2' : '1'}. Check if product labels match dietary preferences (${userPreference}). Use labels for direct matching, or analyze categories and ingredients.\n`;
+    }
+    
+    if (userHealthGoal) {
+        instructions += `${(userAllergies ? 1 : 0) + (userPreference ? 1 : 0) + 1}. Use nutritional data to assess if the product aligns with the health goal: ${userHealthGoal}.\n`;
+        if (nova_group === 4 || nutriscore_grade === 'd' || nutriscore_grade === 'e') {
+            instructions += `   - Consider the product quality indicators when making recommendations.\n`;
+        }
+    }
+    
+    if (userReligion) {
+        instructions += `${(userAllergies ? 1 : 0) + (userPreference ? 1 : 0) + (userHealthGoal ? 1 : 0) + 1}. Check if product labels match religious requirement: ${userReligion}.\n`;
+    }
+    
+    instructions += `- Present three nutritional benefits and three nutritional disadvantages for the product based on actual nutritionalvalues.
+    If the user's information is not provided or is empty, offer general nutritional advice based on the product's nutritional data.
+    IMPORTANT: Only mention allergens, dietary preferences, health goals, or religious requirements if the user has specified them. Do not discuss aspects the user hasn't set.`;
+    
+    let userContext = '';
+    if (userAllergies) userContext += `\n<user_allergies>${userAllergies}</user_allergies>`;
+    if (userHealthGoal) userContext += `\n<user_health_goal>${userHealthGoal}</user_health_goal>`;
+    if (userPreference) userContext += `\n<user_dietary_preferences>${userPreference}</user_dietary_preferences>`;
+    if (userReligion) userContext += `\n<user_religious_requirement>${userReligion}</user_religious_requirement>`;
+    
     return `Human:
-          You are a nutrition expert with the task to provide recommendations about a specific product for the user based on the user's allergies, health goals, dietary preferences, and religious requirements. 
-          Your task involves the following steps:
+          ${instructions}
+  
+          Provide recommendation for the following product:
+            <product_name>${productName}</product_name>
+            <product_ingredients>${productIngredients}</product_ingredients>
+            <allergenInfo>${allergenInfo}</allergenInfo>
+            <labelInfo>${labelInfo}</labelInfo>
+            <categoryInfo>${categoryInfo}</categoryInfo>
+            <nutrimentInfo>${nutrimentInfo}</nutrimentInfo>
+            ${qualityInfo}
 
           1. CRITICAL: Check if any product allergens match the user's allergies. If there is a match, prominently warn the user at the beginning of your response.
           2. Check if product labels match dietary preferences (vegan, vegetarian) or religious requirements (halal, kosher). If labels are present, use them for direct matching. If not, analyze categories and ingredients.
@@ -210,9 +272,9 @@ function calculateHash(
  *
  * @param productCode - The code of the product to retrieve information for.
  * @param language - The language for the product information.
- * @returns A tuple containing product name, ingredients, and additives if the product is found in the database; otherwise, returns [null, null, null].
+ * @returns A tuple containing product name, ingredients, additives, allergens, nutriments, labels, categories, nova_group, nutriscore_grade, ecoscore_grade, and brands if the product is found in the database; otherwise, returns [null, null, null, null, null, null, null, null, null, null, null].
  */
-async function getProductFromDb(productCode: string, language: string): Promise<[string | null, string | null, string | null, string[] | null, any | null, string[] | null, string | null]> {
+async function getProductFromDb(productCode: string, language: string): Promise<[string | null, string | null, string | null, string[] | null, any | null, string[] | null, string | null, number | null, string | null, string | null, string | null]> {
 
     try {
         const { Item  = {} } = await dynamodb.send(new GetItemCommand({
@@ -232,14 +294,18 @@ async function getProductFromDb(productCode: string, language: string): Promise<
                 item.allergens_tags || null,
                 item.nutriments || null,
                 item.labels_tags || null,
-                item.categories || null
+                item.categories || null,
+                item.nova_group || null,
+                item.nutriscore_grade || null,
+                item.ecoscore_grade || null,
+                item.brands || null
             ];
         } else {
-            return [null, null, null, null, null, null, null];
+            return [null, null, null, null, null, null, null, null, null, null, null];
         }
     } catch (e) {
         console.error('Error while getting the Product from database', e);
-        return [null, null, null, null, null, null, null];
+        return [null, null, null, null, null, null, null, null, null, null, null];
     }
 }
 
@@ -391,7 +457,7 @@ async function messageHandler (event, responseStream) {
         const userAllergiesString = userAllergiesKeys.join(', ');
 
 
-        const [productName, productIngredients, productAdditives, productAllergens, productNutriments, productLabels, productCategories] = await getProductFromDb(productCode, language);
+        const [productName, productIngredients, productAdditives, productAllergens, productNutriments, productLabels, productCategories, nova_group, nutriscore_grade, ecoscore_grade, brands] = await getProductFromDb(productCode, language);
         if (productName && productIngredients) {
             logger.info("Product found");
 
@@ -420,7 +486,11 @@ async function messageHandler (event, responseStream) {
                 productNutriments || {},
                 productLabels || [],
                 productCategories || '',
-                language!
+                language!,
+                nova_group || undefined,
+                nutriscore_grade || undefined,
+                ecoscore_grade || undefined,
+                brands || undefined
             );
             productSummary = await generateSummary(promptText, responseStream);
             await putProductSummaryToDynamoDB(productCode, hashValue, productSummary);

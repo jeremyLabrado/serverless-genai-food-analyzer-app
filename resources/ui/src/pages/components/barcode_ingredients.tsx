@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from "react";
 import IngredientsSummary from "./barcode_product_summary";
+import { QualityScoreCard } from "./quality_score_card";
+import { NutrientProgressBars } from "./nutrient_progress_bars";
+import { NutriScoreLogo } from "./nutriscore_logo";
+import { NovaLogo } from "./nova_logo";
+import { EcoScoreLogo } from "./ecoscore_logo";
 
 import Popover from "@cloudscape-design/components/popover";
 import Button from "@cloudscape-design/components/button";
@@ -37,6 +42,49 @@ const BarcodeIngredients: React.FC<BarcodeIngredientsProps> = ({
   const [loading, setLoading] = useState(true); // Added loading state
   const [productName, setProductName] = useState(true); // Added loading state
   const [ingredientsError, setIngredientsError] = useState("");
+  const [nutriments, setNutriments] = useState<any>(null);
+  const [allergensTags, setAllergensTags] = useState<string[]>([]);
+  const [labelsTags, setLabelsTags] = useState<string[]>([]);
+  const [novaGroup, setNovaGroup] = useState<number | undefined>(undefined);
+  const [nutriscoreGrade, setNutriscoreGrade] = useState<string | undefined>(undefined);
+  const [ecoscoreGrade, setEcoscoreGrade] = useState<string | undefined>(undefined);
+  const [brands, setBrands] = useState<string | undefined>(undefined);
+  const [healthGoal, setHealthGoal] = useState<string | undefined>(undefined);
+
+  // Check if ingredient matches user allergens
+  const isAllergen = (ingredientLabel: string): boolean => {
+    const stored = localStorage.getItem("userPreferences");
+    if (!stored) return false;
+    
+    try {
+      const prefs = JSON.parse(stored);
+      const userAllergies = prefs.allergies || [];
+      
+      // Check if ingredient label contains any user allergen
+      const lowerLabel = ingredientLabel.toLowerCase();
+      
+      // Common allergen keywords in multiple languages
+      const allergenKeywords: Record<string, string[]> = {
+        milk: ["milk", "lait", "leche", "latte"],
+        eggs: ["egg", "oeuf", "huevo", "uovo"],
+        peanuts: ["peanut", "arachide", "cacahuete", "arachidi"],
+        tree_nuts: ["nut", "noix", "nuez", "noci", "almond", "amande", "cashew", "cajou"],
+        soy: ["soy", "soja", "soia"],
+        wheat: ["wheat", "blé", "trigo", "grano"],
+        fish: ["fish", "poisson", "pescado", "pesce"],
+        shellfish: ["shellfish", "crustacé", "marisco", "crostacei", "shrimp", "crevette"],
+        sesame: ["sesame", "sésame", "sésamo", "sesamo"]
+      };
+      
+      return userAllergies.some((allergy: any) => {
+        const allergyValue = allergy.value.toLowerCase();
+        const keywords = allergenKeywords[allergyValue] || [allergyValue];
+        return keywords.some(keyword => lowerLabel.includes(keyword));
+      });
+    } catch {
+      return false;
+    }
+  };
 
   const fetchData = async () => {
     console.log(
@@ -64,6 +112,20 @@ const BarcodeIngredients: React.FC<BarcodeIngredientsProps> = ({
         setIngredients(newIngredients);
 
         setProductName(response.product_name);
+        setNutriments(response.nutriments || null);
+        setAllergensTags(response.allergens_tags || []);
+        setLabelsTags(response.labels_tags || []);
+        setNovaGroup(response.nova_group);
+        setNutriscoreGrade(response.nutriscore_grade);
+        setEcoscoreGrade(response.ecoscore_grade);
+        setBrands(response.brands);
+
+        // Extract health goal from user preferences
+        const stored = localStorage.getItem("userPreferences");
+        if (stored) {
+          const prefs = JSON.parse(stored);
+          setHealthGoal(prefs.healthGoal?.label || undefined);
+        }
 
         const myAdditives:Additive [] = [];
         for (const key in response.additives_description) {
@@ -122,14 +184,75 @@ const BarcodeIngredients: React.FC<BarcodeIngredientsProps> = ({
           {apiResponse && (
             <div>
               <SpaceBetween direction="vertical" size="m">
-                <SpaceBetween direction="vertical" size="m">
-                  <div>
-                    <SpaceBetween direction="vertical" size="xs">
-                      <Alert statusIconAriaLabel="Success" type="success">
-                        {currentTranslations["scan_scanned_label"]}:{" "}
-                        <strong>{productCode} </strong> |{" "}
-                        {currentTranslations["product_name_label"]}:{" "}
-                        <strong>{productName}</strong>
+                {/* Product Header Card */}
+                <Container>
+                  <SpaceBetween size="m">
+                    <div style={{ padding: "8px 0" }}>
+                      <h2 style={{ 
+                        margin: "0 0 4px 0", 
+                        fontSize: "20px", 
+                        fontWeight: "600",
+                        color: "#1f2937"
+                      }}>
+                        {productName}
+                      </h2>
+                      <p style={{ 
+                        margin: 0, 
+                        fontSize: "14px", 
+                        color: "#6b7280" 
+                      }}>
+                        {currentTranslations["scan_scanned_label"]}: {productCode}
+                      </p>
+                    </div>
+
+                    {/* Quality Score Card */}
+                    <QualityScoreCard
+                      nutriscore_grade={nutriscoreGrade}
+                      additives={additives}
+                      labels_tags={labelsTags}
+                    />
+
+                    {/* Quality Logos - Single Row Compact */}
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'center', 
+                      alignItems: 'center',
+                      gap: '12px',
+                      margin: '12px 0'
+                    }}>
+                      {nutriscoreGrade && (
+                        <div style={{ flex: '0 0 auto' }}>
+                          <NutriScoreLogo grade={nutriscoreGrade} size={140} />
+                        </div>
+                      )}
+                      {novaGroup && (
+                        <div style={{ flex: '0 0 auto' }}>
+                          <NovaLogo group={novaGroup} size={40} />
+                        </div>
+                      )}
+                      {ecoscoreGrade && (
+                        <div style={{ flex: '0 0 auto' }}>
+                          <EcoScoreLogo grade={ecoscoreGrade} size={60} />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Nutritional Info Progress Bars */}
+                    {nutriments && (
+                      <NutrientProgressBars
+                        calories={nutriments["energy-kcal_100g"]}
+                        salt={nutriments["salt_100g"]}
+                        sugars={nutriments["sugars_100g"]}
+                        proteins={nutriments["proteins_100g"]}
+                      />
+                    )}
+
+                    {/* Allergen Warning */}
+                    {allergensTags && allergensTags.length > 0 && (
+                      <Alert type="error">
+                        <strong>⚠️ {currentTranslations["allergen_warning_title"]}</strong>
+                        <br />
+                        {currentTranslations["allergen_warning_message"]} {allergensTags.map(tag => tag.replace("en:", "")).join(", ")}
                       </Alert>
                     </SpaceBetween>
                   </div>
