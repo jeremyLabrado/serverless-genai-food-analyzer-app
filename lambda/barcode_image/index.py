@@ -102,7 +102,7 @@ def query_bedrock(payload, model_id):
             contentType="application/json",
             accept="*/*",
         )
-        print(response)
+        logger.debug("Bedrock response: %s", response)
         input_token_count = response["ResponseMetadata"]["HTTPHeaders"]["x-amzn-bedrock-input-token-count"]
         output_token_count = response["ResponseMetadata"]["HTTPHeaders"]["x-amzn-bedrock-output-token-count"]
         logger.debug("Input_tokens = {}, Output_tokens = {}".format(input_token_count, output_token_count))
@@ -257,7 +257,7 @@ def upload_image_to_s3(image_bytes):
 
     s3.put_object(Body=image_bytes, Bucket=S3_BUCKET_NAME, Key=s3_key)
 
-    print("Uploaded image:", file_name)
+    logger.debug("Uploaded image: %s", file_name)
 
     return f"img/{file_name}"
 
@@ -297,7 +297,7 @@ def get_image_url(product_code, params_hash):
         ConsistentRead=True
         
     )
-    print(response)
+    logger.debug("DynamoDB response: %s", response)
     # Check if the 'imageUrl' attribute exists in the response
     if 'Item' in response:
         if 'imageUrl' in response['Item']:
@@ -339,7 +339,7 @@ def handler(event, context):
                 put_product_image_to_dynamodb(product_code, hash_value, image_url)
 
             response = {"imageUrl": "/" + image_url}
-            logger.debug("Response", extra=response)
+            logger.debug("Response: %s", response)
 
             return {
                 "statusCode": 200, 

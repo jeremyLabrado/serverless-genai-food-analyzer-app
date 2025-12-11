@@ -51,7 +51,7 @@ export class FoodAnalyzerStack extends Stack {
       "powertools-layer",
       `arn:aws:lambda:${
         Stack.of(this).region
-      }:017000801446:layer:AWSLambdaPowertoolsPythonV2:56`
+      }:017000801446:layer:AWSLambdaPowertoolsPythonV2:60`
     );
 
     const powerToolsTypeScriptLayer = lambda.LayerVersion.fromLayerVersionArn(
@@ -233,11 +233,11 @@ export class FoodAnalyzerStack extends Stack {
       this,
       "GetIngredients",
       {
-        runtime: lambda.Runtime.PYTHON_3_12,
+        runtime: lambda.Runtime.PYTHON_3_14,
         handler: "index.handler",
         code: lambda.Code.fromAsset("lambda/barcode_ingredients", {
           bundling: {
-            image: lambda.Runtime.PYTHON_3_12.bundlingImage,
+            image: DockerImage.fromRegistry("public.ecr.aws/sam/build-python3.14:latest"),
             command: [
               "bash", "-c",
               "pip install -r requirements.txt -t /asset-output && cp -au . /asset-output"
@@ -304,7 +304,7 @@ export class FoodAnalyzerStack extends Stack {
       this,
       "GetImageIngredients",
       {
-        runtime: lambda.Runtime.PYTHON_3_12,
+        runtime: lambda.Runtime.PYTHON_3_14,
         handler: "index.handler",
         code: lambda.Code.fromAsset("lambda/recipe_image_ingredients"),
         memorySize: 10240,
@@ -353,7 +353,7 @@ export class FoodAnalyzerStack extends Stack {
       this,
       "GenerateRecipe",
       {
-        runtime: lambda.Runtime.PYTHON_3_12,
+        runtime: lambda.Runtime.PYTHON_3_14,
         handler: "index.handler",
         code: lambda.Code.fromAsset("lambda/recipe_proposals"),
         memorySize: 10240,
@@ -401,7 +401,7 @@ export class FoodAnalyzerStack extends Stack {
       encryptionKey: logEncryptionKey,
     });
     const barcodeImageFunction = new lambda.Function(this, "GenerateImage", {
-      runtime: lambda.Runtime.PYTHON_3_12,
+      runtime: lambda.Runtime.PYTHON_3_14,
       handler: "index.handler",
       code: lambda.Code.fromAsset("lambda/barcode_image"),
       memorySize: 10240,
