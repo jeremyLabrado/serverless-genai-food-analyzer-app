@@ -89,6 +89,7 @@ async function generateRecipeSteps(language: string, recipe, responseStream) {
         contentType: "application/json",
         accept: "application/json",
         body: JSON.stringify(payload),
+        performanceConfigLatency: 'standard' as const
     };
     let completion = '';
     try {
