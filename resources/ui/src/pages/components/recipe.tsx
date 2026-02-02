@@ -34,6 +34,44 @@ const Recipe: React.FC = () => {
 
   const { devMode } = useContext(DevModeContext);
 
+  const loadMockFridgeImages = async () => {
+    // These images are served from S3 via CloudFront /img/ path
+    const mockImages = [
+      'fridge1.jpeg',
+      'fridge2.jpeg',
+      'fridge3.jpeg'
+    ];
+    
+    const loadedImages: string[] = [];
+    
+    for (const imgName of mockImages) {
+      try {
+        // Fetch from the img folder in the project root
+        const imgPath = `/img/${imgName}`;
+        const response = await fetch(imgPath);
+        const blob = await response.blob();
+        const reader = new FileReader();
+        
+        await new Promise((resolve) => {
+          reader.onloadend = () => {
+            if (reader.result) {
+              loadedImages.push(reader.result as string);
+            }
+            resolve(null);
+          };
+          reader.readAsDataURL(blob);
+        });
+      } catch (error) {
+        console.error(`Failed to load fridge image ${imgName}:`, error);
+      }
+    }
+    
+    if (loadedImages.length > 0) {
+      setCapturedImages(loadedImages);
+      setShowOptionsButtons(true);
+    }
+  };
+
   const enumerateDevices = async () => {
     try {
       setLoadingVideoDevices(true);
@@ -206,24 +244,33 @@ function resizeBase64Image(base64Image: string, width: number, height: number): 
                       {currentTranslations["recipe_button_label"]}
                     </Button>
                     {devMode && (
-                      <FileUpload
-                        onChange={fileUploadOnChange}
-                        value={myValue}
-                        accept="image/png, image/jpg"
-                        i18nStrings={{
-                          uploadButtonText: (e) =>
-                            e
-                              ? currentTranslations["recipe_button_file_label"]
-                              : currentTranslations["recipe_button_file_label"],
-                          dropzoneText: (e) =>
-                            e ? "Drop files to upload" : "Drop file to upload",
-                          removeFileAriaLabel: (e) => `Remove file ${e + 1}`,
-                          limitShowFewer: "Show fewer files",
-                          limitShowMore: "Show more files",
-                          errorIconAriaLabel: "Error",
-                        }}
-                        tokenLimit={1}
-                      />
+                      <>
+                        <FileUpload
+                          onChange={fileUploadOnChange}
+                          value={myValue}
+                          accept="image/png, image/jpg"
+                          i18nStrings={{
+                            uploadButtonText: (e) =>
+                              e
+                                ? currentTranslations["recipe_button_file_label"]
+                                : currentTranslations["recipe_button_file_label"],
+                            dropzoneText: (e) =>
+                              e ? "Drop files to upload" : "Drop file to upload",
+                            removeFileAriaLabel: (e) => `Remove file ${e + 1}`,
+                            limitShowFewer: "Show fewer files",
+                            limitShowMore: "Show more files",
+                            errorIconAriaLabel: "Error",
+                          }}
+                          tokenLimit={1}
+                        />
+                        <Button 
+                          variant="normal" 
+                          iconName="upload"
+                          onClick={loadMockFridgeImages}
+                        >
+                          Load Test Images
+                        </Button>
+                      </>
                     )}
                   </div>
 

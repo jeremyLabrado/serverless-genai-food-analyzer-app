@@ -707,6 +707,15 @@ export class FoodAnalyzerStack extends Stack {
       destinationBucket: hostingBucket,
       memoryLimit: 512,
     });
+    
+    // Deploy test fridge images to img bucket
+    new s3deploy.BucketDeployment(this, "DeployTestImages", {
+      sources: [s3deploy.Source.asset(path.join(__dirname, "..", "img"))],
+      destinationBucket: imgBucket,
+      destinationKeyPrefix: "img/",
+      memoryLimit: 512,
+    });
+    
     new FoodAnalyzerDashBoard(this, "Dashboard", {
       stage: stage,
       functionList: [
