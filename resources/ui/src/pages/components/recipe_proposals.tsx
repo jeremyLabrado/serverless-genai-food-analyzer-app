@@ -104,14 +104,25 @@ const RecipeProposal: React.FC<RecipeProposalProps> = ({
       setHostingDomain(awsExports.domainName);
 
       try {
+        // Get full user preferences
+        const userPreferences = JSON.parse(
+          localStorage.getItem("userPreferences") || "{}"
+        );
+        
+        // Extract allergies and dietary preferences as arrays of values
+        const allergiesArray = (userPreferences.allergies || []).map((a: any) => a.value);
+        const preferencesArray = (userPreferences.dietaryPrefs || []).map((d: any) => d.value);
+        const dislikedArray = (userPreferences.dislikedIngredients || []).map((d: any) => d.value);
+        const cuisinesArray = (userPreferences.favoriteCuisines || []).map((c: any) => c.value);
+        
         const body = {
           language: language,
-          allergies: JSON.parse(
-            localStorage.getItem("personalPrefAllergies") || "{}"
-          ),
-          preferences: JSON.parse(
-            localStorage.getItem("personalPrefCustom") || "{}"
-          ),
+          allergies: allergiesArray,
+          preferences: preferencesArray,
+          healthGoal: userPreferences.healthGoal?.value || null,
+          religion: userPreferences.religion?.value || null,
+          dislikedIngredients: dislikedArray,
+          favoriteCuisines: cuisinesArray,
           ingredients: ingredients,
         };
 

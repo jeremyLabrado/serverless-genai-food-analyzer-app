@@ -144,6 +144,10 @@ def handler(event, context):
     ingredients = json_body.get("ingredients")
     allergies = json_body.get("allergies")
     preferences = json_body.get("preferences")
+    health_goal = json_body.get("healthGoal")
+    religion = json_body.get("religion")
+    disliked_ingredients = json_body.get("dislikedIngredients", [])
+    favorite_cuisines = json_body.get("favoriteCuisines", [])
     
     
     model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
@@ -155,18 +159,37 @@ def handler(event, context):
         'stop_sequences': ['Human:']
     }
     
-    system_prompt="Your task is to generate personalized recipe ideas based on the user's input of available ingredients and dietary preferences. Use this information to suggest a variety of creative and delicious recipes that can be made using the given ingredients while accommodating the user's dietary needs, if any are mentioned. For each recipe, provide a brief description, a list of required ingredients, and a simple set of instructions. Ensure that the recipes are easy to follow, nutritious, and can be prepared with minimal additional ingredients or equipment."
+    system_prompt="Your task is to generate personalized recipe ideas based on the user's input of available ingredients and dietary preferences. Use this information to suggest a variety of creative and delicious recipes that can be made using the given ingredients while accommodating the user's dietary needs, health goals, religious requirements, taste preferences, and favorite cuisines. For each recipe, provide a brief description, a list of required ingredients, and a simple set of instructions. Ensure that the recipes are easy to follow, nutritious, and can be prepared with minimal additional ingredients or equipment."
+    
+    # Build constraint strings
+    allergy_constraint = f"Ensure there is no {allergies} in the recipe." if allergies else ""
+    disliked_constraint = f"Avoid using these disliked ingredients: {disliked_ingredients}." if disliked_ingredients else ""
+    religion_constraint = f"Recipe must comply with {religion} dietary laws." if religion and religion != "none" else ""
+    health_goal_constraint = f"Recipe should align with health goal: {health_goal}." if health_goal else ""
+    cuisine_preference = f"Prefer cuisines: {favorite_cuisines}." if favorite_cuisines else ""
     
     # nosemgrep
     prompt="""
-    Create maximum 3 recipee (easy, medium, hard) based my ingredients, preferences and allergies.:
+    Create maximum 3 recipes (easy, medium, hard) based on my ingredients, preferences, and constraints:
+    
     Available ingredients: %s
     Allergies: %s
     Dietary preferences: %s
+    Health goal: %s
+    Religious requirements: %s
+    Disliked ingredients: %s
+    Favorite cuisines: %s
     
-    Optinal ingredients are common ingredients that can be added to the recipee like salt, pepper, olive oil, etc. but can not contain ingredients in the allergies list.
+    CONSTRAINTS:
+    - %s
+    - %s
+    - %s
+    - %s
+    - %s
+    - Optional ingredients are common ingredients that can be added to the recipe like salt, pepper, olive oil, etc. but MUST NOT contain ingredients in the allergies or disliked list.
+    - The "ingredients" key should only contain ingredients from %s.
 
-    Output the recipee in the following language %s as JSON, following the format, keys of JSON stays in English:
+    Output the recipe in the following language %s as JSON, following the format, keys of JSON stays in English:
     ```json
     "recipes": [
         {
@@ -190,11 +213,11 @@ def handler(event, context):
     ]
     }
     ```
-    The "ingredients" key should only contain ingedients from %s.
     
-    Ensure there is no %s in the recipee.
     Before answer think step by step in <thinking> tags and analyze all rules. Answer must be inside <answer></answer> tags."
-    """%(ingredients,allergies,preferences,language,ingredients,ingredients,ingredients,allergies)
+    """%(ingredients, allergies, preferences, health_goal, religion, disliked_ingredients, favorite_cuisines,
+         allergy_constraint, disliked_constraint, religion_constraint, health_goal_constraint, cuisine_preference,
+         ingredients, language, ingredients, ingredients)
     response=generate_answer( prompt, model_id, claude_config,system_prompt,post_process=True)
     prompt_images=[f"{recipee['recipe_title']}.{recipee['description']}" for recipee in response['recipes']]
     image_data=generate_images_recipes(prompt_images)
