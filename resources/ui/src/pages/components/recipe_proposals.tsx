@@ -307,7 +307,7 @@ const RecipeProposal: React.FC<RecipeProposalProps> = ({
                           onClick={() => fetchStepsRecipe(recipePropositionsResponse[0], 0)}
                           disabled={anyLoading}
                         >
-                          📖 {currentTranslations["recipe_button_guide"]}
+                          👨‍🍳 Start Cooking
                         </Button>
                         <Button
                           variant="normal"

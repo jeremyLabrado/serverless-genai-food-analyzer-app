@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { LanguageContext } from "../app";
 import customTranslations from "../../assets/i18n/all";
 import { getBarcode } from "../../utils/ingredient-mapping";
+import { CheckoutSuccess } from "./checkout-success";
 
 interface CartItem {
   ingredient: string;
@@ -18,6 +19,7 @@ export function Cart() {
   const currentTranslations = customTranslations[language];
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const currencySymbol = ['french', 'spanish', 'italian'].includes(language) ? '€' : '$';
+  const [showCheckoutSuccess, setShowCheckoutSuccess] = useState(false);
 
   useEffect(() => {
     const stored = localStorage.getItem("shoppingCart");
@@ -199,14 +201,26 @@ export function Cart() {
               <Button
                 variant="primary"
                 onClick={() => {
-                  alert(`✅ Order placed! Total: ${currencySymbol}${total.toFixed(2)}\n\nThank you for shopping with us!`);
-                  clearCart();
+                  setShowCheckoutSuccess(true);
                 }}
               >
                 Checkout →
               </Button>
             </div>
           </>
+        )}
+
+        {/* Checkout Success Modal */}
+        {showCheckoutSuccess && (
+          <CheckoutSuccess
+            totalCost={total}
+            itemCount={cartItems.length}
+            language={language}
+            onDismiss={() => {
+              setShowCheckoutSuccess(false);
+              clearCart();
+            }}
+          />
         )}
       </SpaceBetween>
     </div>
