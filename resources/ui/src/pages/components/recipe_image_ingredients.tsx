@@ -150,22 +150,121 @@ const RecipeImageIngredients: React.FC<RecipeImageIngredientsProps> = ({
       {imageIngredientsResponse && imageIngredientsResponse.length > 0 && (
         <div>
           <SpaceBetween direction="vertical" size="m">
-            <Container
-              footer={
-                <TokenGroup
-                  items={imageIngredientsResponse.map((item, index) => ({
-                    label: item,
-                  }))}
-                />
-              }
-              header={
-                <Header variant="h2">
-                  {currentTranslations["image_ingredients_title"]}
-                </Header>
-              }
-            >
-              {/* Content */}
-            </Container>
+            {/* Categorized Ingredients Display */}
+            <div style={{
+              background: "#fff",
+              borderRadius: "16px",
+              padding: "20px",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+              border: "1px solid #e0e0e0",
+            }}>
+              <div style={{
+                background: "#E8F5E9",
+                borderRadius: "12px",
+                padding: "12px 16px",
+                marginBottom: "20px",
+                textAlign: "center",
+              }}>
+                <h3 style={{ fontSize: "1.1rem", margin: 0, color: "#00C853" }}>
+                  ✅ Found in your fridge ({imageIngredientsResponse.length} items)
+                </h3>
+              </div>
+
+              {(() => {
+                // Categorize ingredients
+                const vegetables = ["broccoli", "carrots", "kale", "bell peppers", "bell pepper", "onions", "onion", "tomatoes", "tomato", "cauliflower", "lettuce", "spinach", "mushrooms", "mushroom", "zucchini", "cucumber", "garlic", "potato", "potatoes"];
+                const proteins = ["salmon", "fish", "sausages", "sausage", "chickpeas", "chicken", "beef", "pork", "eggs", "egg", "meatballs"];
+                const dairy = ["milk", "yogurt", "cheese", "butter", "cream"];
+                const fruits = ["apple", "apples", "banana", "bananas", "orange", "oranges", "lemon", "lemons", "strawberries", "strawberry", "grapes", "grape"];
+                
+                const categorized = {
+                  vegetables: imageIngredientsResponse.filter((ing: string) => 
+                    vegetables.some(v => ing.toLowerCase().includes(v))
+                  ),
+                  proteins: imageIngredientsResponse.filter((ing: string) => 
+                    proteins.some(p => ing.toLowerCase().includes(p))
+                  ),
+                  dairy: imageIngredientsResponse.filter((ing: string) => 
+                    dairy.some(d => ing.toLowerCase().includes(d))
+                  ),
+                  fruits: imageIngredientsResponse.filter((ing: string) => 
+                    fruits.some(f => ing.toLowerCase().includes(f))
+                  ),
+                  other: imageIngredientsResponse.filter((ing: string) => {
+                    const lower = ing.toLowerCase();
+                    return !vegetables.some(v => lower.includes(v)) &&
+                           !proteins.some(p => lower.includes(p)) &&
+                           !dairy.some(d => lower.includes(d)) &&
+                           !fruits.some(f => lower.includes(f));
+                  }),
+                };
+
+                return (
+                  <SpaceBetween size="m">
+                    {categorized.vegetables.length > 0 && (
+                      <div>
+                        <h4 style={{ fontSize: "0.95rem", margin: "0 0 8px 0", color: "#666" }}>
+                          🥦 Vegetables:
+                        </h4>
+                        <p style={{ fontSize: "0.9rem", color: "#333", margin: 0, lineHeight: "1.6" }}>
+                          {categorized.vegetables.join(", ")}
+                        </p>
+                      </div>
+                    )}
+                    {categorized.proteins.length > 0 && (
+                      <div>
+                        <h4 style={{ fontSize: "0.95rem", margin: "0 0 8px 0", color: "#666" }}>
+                          🥩 Proteins:
+                        </h4>
+                        <p style={{ fontSize: "0.9rem", color: "#333", margin: 0, lineHeight: "1.6" }}>
+                          {categorized.proteins.join(", ")}
+                        </p>
+                      </div>
+                    )}
+                    {categorized.dairy.length > 0 && (
+                      <div>
+                        <h4 style={{ fontSize: "0.95rem", margin: "0 0 8px 0", color: "#666" }}>
+                          🥛 Dairy:
+                        </h4>
+                        <p style={{ fontSize: "0.9rem", color: "#333", margin: 0, lineHeight: "1.6" }}>
+                          {categorized.dairy.join(", ")}
+                        </p>
+                      </div>
+                    )}
+                    {categorized.fruits.length > 0 && (
+                      <div>
+                        <h4 style={{ fontSize: "0.95rem", margin: "0 0 8px 0", color: "#666" }}>
+                          🍎 Fruits:
+                        </h4>
+                        <p style={{ fontSize: "0.9rem", color: "#333", margin: 0, lineHeight: "1.6" }}>
+                          {categorized.fruits.join(", ")}
+                        </p>
+                      </div>
+                    )}
+                    {categorized.other.length > 0 && (
+                      <div>
+                        <h4 style={{ fontSize: "0.95rem", margin: "0 0 8px 0", color: "#666" }}>
+                          🌾 Other:
+                        </h4>
+                        <p style={{ fontSize: "0.9rem", color: "#333", margin: 0, lineHeight: "1.6" }}>
+                          {categorized.other.join(", ")}
+                        </p>
+                      </div>
+                    )}
+                  </SpaceBetween>
+                );
+              })()}
+
+              <div style={{ marginTop: "20px", paddingTop: "20px", borderTop: "1px solid #e0e0e0" }}>
+                <Button
+                  variant="primary"
+                  fullWidth
+                  onClick={() => {}}
+                >
+                  🔍 Generate Recipes
+                </Button>
+              </div>
+            </div>
 
             <RecipePropositions
               language={language}
