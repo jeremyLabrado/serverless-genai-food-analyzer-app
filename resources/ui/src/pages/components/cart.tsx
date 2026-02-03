@@ -5,6 +5,7 @@ import { LanguageContext } from "../app";
 import customTranslations from "../../assets/i18n/all";
 import { getBarcode } from "../../utils/ingredient-mapping";
 import { CheckoutSuccess } from "./checkout-success";
+import { JourneyProgress } from "./journey-progress";
 
 interface CartItem {
   ingredient: string;
@@ -81,6 +82,11 @@ export function Cart() {
             {cartItems.length} items - Ready for checkout
           </p>
         </div>
+
+        {/* Journey Progress */}
+        {cartItems.length > 0 && (
+          <JourneyProgress currentStep="cart" />
+        )}
 
         {/* Cart Items */}
         {cartItems.length === 0 ? (

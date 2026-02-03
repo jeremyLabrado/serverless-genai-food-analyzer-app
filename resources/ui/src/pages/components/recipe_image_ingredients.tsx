@@ -9,8 +9,8 @@ import { callAPI } from "../../assets/js/custom";
 import "../../assets/css/style.css";
 import customTranslations from "../../assets/i18n/all";
 import RecipePropositions from "./recipe_proposals";
-import { on } from "events";
 import { FlowItems } from "./flowitems";
+import { JourneyProgress } from "./journey-progress";
 
 interface RecipeImageIngredientsProps {
   images: string[];
@@ -150,6 +150,9 @@ const RecipeImageIngredients: React.FC<RecipeImageIngredientsProps> = ({
       {imageIngredientsResponse && imageIngredientsResponse.length > 0 && (
         <div>
           <SpaceBetween direction="vertical" size="m">
+            {/* Journey Progress */}
+            <JourneyProgress currentStep="recipe" />
+
             {/* Categorized Ingredients Display */}
             <div style={{
               background: "#fff",
