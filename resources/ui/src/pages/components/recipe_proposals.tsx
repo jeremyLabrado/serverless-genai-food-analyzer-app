@@ -9,6 +9,8 @@ import customTranslations from "../../assets/i18n/all";
 import Badge from "@cloudscape-design/components/badge";
 import ReactMarkdown from "react-markdown";
 import { getMockPrice } from "../../utils/ingredient-mapping";
+import { LeftoverSuggestion } from "./leftover-suggestion";
+import { CartSuccessModal } from "./cart-success-modal";
 
 interface RecipeProposalProps {
   language: string;
@@ -44,6 +46,10 @@ const RecipeProposal: React.FC<RecipeProposalProps> = ({
   const [recipeContents, setRecipeContents] = useState(Array(3).fill(null));
   const [hostingDomain, setHostingDomain] = useState("");
   const [recipeLoadingStep, setRecipeLoadingStep] = useState(0);
+  const [showLeftoverSuggestion, setShowLeftoverSuggestion] = useState(false);
+  const [completedRecipe, setCompletedRecipe] = useState<any>(null);
+  const [showCartSuccess, setShowCartSuccess] = useState(false);
+  const [cartSuccessData, setCartSuccessData] = useState<any>(null);
 
   // Animate loading steps for recipe generation
   useEffect(() => {
@@ -328,6 +334,8 @@ const RecipeProposal: React.FC<RecipeProposalProps> = ({
                           const cart = JSON.parse(localStorage.getItem("shoppingCart") || "[]");
                           const recipe = recipePropositionsResponse[0];
                           const allIngredients = [...recipe.ingredients, ...(recipe.optional_ingredients || [])];
+                          const totalCost = allIngredients.reduce((sum, ing) => sum + getMockPrice(ing), 0);
+                          
                           allIngredients.forEach((ing: string) => {
                             cart.push({
                               ingredient: ing,
@@ -337,7 +345,13 @@ const RecipeProposal: React.FC<RecipeProposalProps> = ({
                             });
                           });
                           localStorage.setItem("shoppingCart", JSON.stringify(cart));
-                          alert(`✅ Added ${allIngredients.length} items to cart!`);
+                          
+                          setCartSuccessData({
+                            recipe,
+                            itemCount: allIngredients.length,
+                            totalCost,
+                          });
+                          setShowCartSuccess(true);
                         }}
                       >
                         🛒 Add All Ingredients to Cart
@@ -389,6 +403,18 @@ const RecipeProposal: React.FC<RecipeProposalProps> = ({
                         </h4>
                         <div style={{ fontSize: "0.95rem", lineHeight: "1.6", color: "#333" }}>
                           <ReactMarkdown children={recipeContents[0]} />
+                        </div>
+                        <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid #e0e0e0" }}>
+                          <Button
+                            variant="primary"
+                            fullWidth
+                            onClick={() => {
+                              setCompletedRecipe(recipePropositionsResponse[0]);
+                              setShowLeftoverSuggestion(true);
+                            }}
+                          >
+                            ✅ Mark as Complete
+                          </Button>
                         </div>
                       </div>
                     </div>
@@ -487,6 +513,27 @@ const RecipeProposal: React.FC<RecipeProposalProps> = ({
             )}
           </SpaceBetween>
         </div>
+      )}
+
+      {/* Leftover Suggestion Modal */}
+      {showLeftoverSuggestion && completedRecipe && (
+        <LeftoverSuggestion
+          originalRecipe={completedRecipe}
+          language={language}
+          onDismiss={() => setShowLeftoverSuggestion(false)}
+        />
+      )}
+
+      {/* Cart Success Modal */}
+      {showCartSuccess && cartSuccessData && (
+        <CartSuccessModal
+          recipe={cartSuccessData.recipe}
+          itemCount={cartSuccessData.itemCount}
+          totalCost={cartSuccessData.totalCost}
+          language={language}
+          recipeContext={recipeContext}
+          onDismiss={() => setShowCartSuccess(false)}
+        />
       )}
     </TextContent>
   );
