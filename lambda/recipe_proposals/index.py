@@ -148,6 +148,7 @@ def handler(event, context):
     religion = json_body.get("religion")
     disliked_ingredients = json_body.get("dislikedIngredients", [])
     favorite_cuisines = json_body.get("favoriteCuisines", [])
+    recipe_context = json_body.get("recipeContext", {})
     
     
     model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
@@ -168,6 +169,12 @@ def handler(event, context):
     health_goal_constraint = f"Recipe should align with health goal: {health_goal}." if health_goal else ""
     cuisine_preference = f"Prefer cuisines: {favorite_cuisines}." if favorite_cuisines else ""
     
+    # Recipe context constraints
+    time_constraint = f"Total cooking time (prep + cook) must not exceed {recipe_context.get('time', 30)} minutes." if recipe_context.get('time') else ""
+    people_constraint = f"Recipe must serve {recipe_context.get('people', 4)} people." if recipe_context.get('people') else ""
+    equipment_constraint = f"Use only {recipe_context.get('equipment', 'all')} equipment." if recipe_context.get('equipment') and recipe_context.get('equipment') != 'all' else ""
+    budget_constraint = f"Keep ingredient cost under ${recipe_context.get('budget', 10)} per person." if recipe_context.get('budget') else ""
+    
     # nosemgrep
     prompt="""
     Create maximum 3 recipes (easy, medium, hard) based on my ingredients, preferences, and constraints:
@@ -180,7 +187,17 @@ def handler(event, context):
     Disliked ingredients: %s
     Favorite cuisines: %s
     
+    RECIPE CONTEXT:
+    - Cooking time limit: %s minutes
+    - Servings: %s people
+    - Equipment: %s
+    - Budget per person: $%s
+    
     CONSTRAINTS:
+    - %s
+    - %s
+    - %s
+    - %s
     - %s
     - %s
     - %s
@@ -216,7 +233,9 @@ def handler(event, context):
     
     Before answer think step by step in <thinking> tags and analyze all rules. Answer must be inside <answer></answer> tags."
     """%(ingredients, allergies, preferences, health_goal, religion, disliked_ingredients, favorite_cuisines,
+         recipe_context.get('time', 30), recipe_context.get('people', 4), recipe_context.get('equipment', 'all'), recipe_context.get('budget', 10),
          allergy_constraint, disliked_constraint, religion_constraint, health_goal_constraint, cuisine_preference,
+         time_constraint, people_constraint, equipment_constraint, budget_constraint,
          ingredients, language, ingredients, ingredients)
     response=generate_answer( prompt, model_id, claude_config,system_prompt,post_process=True)
     prompt_images=[f"{recipee['recipe_title']}.{recipee['description']}" for recipee in response['recipes']]

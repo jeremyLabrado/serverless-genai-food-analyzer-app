@@ -1,10 +1,12 @@
-import React, { useCallback, useContext, useRef, useState } from "react";
+import React, { useCallback, useContext, useRef, useState, useEffect } from "react";
 import {
   SpaceBetween,
   Container,
   Box,
   SegmentedControl,
   Input,
+  FormField,
+  Grid,
 } from "@cloudscape-design/components";
 import Button from "@cloudscape-design/components/button";
 import customTranslations from "../../assets/i18n/all";
@@ -31,8 +33,36 @@ const Recipe: React.FC = () => {
     value: string;
   } | null>(null);
 
+  // Recipe context state
+  const [recipeTime, setRecipeTime] = useState<any>({ label: "30 min", value: "30" });
+  const [recipePeople, setRecipePeople] = useState<any>({ label: "4 people", value: "4" });
+  const [recipeEquipment, setRecipeEquipment] = useState<any>({ label: "All", value: "all" });
+  const [recipeBudget, setRecipeBudget] = useState<any>({ label: "$10", value: "10" });
 
   const { devMode } = useContext(DevModeContext);
+
+  // Load recipe context from localStorage
+  useEffect(() => {
+    const stored = localStorage.getItem("recipeContext");
+    if (stored) {
+      const context = JSON.parse(stored);
+      setRecipeTime(context.time || { label: "30 min", value: "30" });
+      setRecipePeople(context.people || { label: "4 people", value: "4" });
+      setRecipeEquipment(context.equipment || { label: "All", value: "all" });
+      setRecipeBudget(context.budget || { label: "$10", value: "10" });
+    }
+  }, []);
+
+  // Save recipe context to localStorage
+  useEffect(() => {
+    const context = {
+      time: recipeTime,
+      people: recipePeople,
+      equipment: recipeEquipment,
+      budget: recipeBudget,
+    };
+    localStorage.setItem("recipeContext", JSON.stringify(context));
+  }, [recipeTime, recipePeople, recipeEquipment, recipeBudget]);
 
   const loadSingleMockImage = async (imageNumber: number) => {
     const imgName = `fridge${imageNumber}.jpeg`;
@@ -244,9 +274,72 @@ function resizeBase64Image(base64Image: string, width: number, height: number): 
                     </div>
                   )}
                   
+                  {/* Recipe Context Form */}
+                  {!imgSrc && capturedImages.length === 0 && (
+                    <Container>
+                      <SpaceBetween direction="vertical" size="s">
+                        <h3 style={{ margin: "0 0 16px 0", color: "#333" }}>Recipe Context</h3>
+                        <Grid gridDefinition={[{ colspan: 3 }, { colspan: 3 }, { colspan: 3 }, { colspan: 3 }]}>
+                          <FormField label="Time">
+                            <Select
+                              selectedOption={recipeTime}
+                              onChange={({ detail }) => setRecipeTime(detail.selectedOption)}
+                              options={[
+                                { label: "15 min", value: "15" },
+                                { label: "30 min", value: "30" },
+                                { label: "45 min", value: "45" },
+                                { label: "60 min", value: "60" },
+                                { label: "90+ min", value: "90" },
+                              ]}
+                            />
+                          </FormField>
+                          <FormField label="People">
+                            <Select
+                              selectedOption={recipePeople}
+                              onChange={({ detail }) => setRecipePeople(detail.selectedOption)}
+                              options={[
+                                { label: "1 person", value: "1" },
+                                { label: "2 people", value: "2" },
+                                { label: "4 people", value: "4" },
+                                { label: "6 people", value: "6" },
+                                { label: "8+ people", value: "8" },
+                              ]}
+                            />
+                          </FormField>
+                          <FormField label="Equipment">
+                            <Select
+                              selectedOption={recipeEquipment}
+                              onChange={({ detail }) => setRecipeEquipment(detail.selectedOption)}
+                              options={[
+                                { label: "All", value: "all" },
+                                { label: "Stovetop only", value: "stovetop" },
+                                { label: "Oven only", value: "oven" },
+                                { label: "Microwave only", value: "microwave" },
+                                { label: "No cooking", value: "none" },
+                              ]}
+                            />
+                          </FormField>
+                          <FormField label="Budget per person">
+                            <Select
+                              selectedOption={recipeBudget}
+                              onChange={({ detail }) => setRecipeBudget(detail.selectedOption)}
+                              options={[
+                                { label: "$5", value: "5" },
+                                { label: "$10", value: "10" },
+                                { label: "$15", value: "15" },
+                                { label: "$20", value: "20" },
+                                { label: "$30+", value: "30" },
+                              ]}
+                            />
+                          </FormField>
+                        </Grid>
+                      </SpaceBetween>
+                    </Container>
+                  )}
+                  
                   {/* Sample fridge images - hero cards */}
                   {!imgSrc && capturedImages.length === 0 && (
-                    <div style={{ marginBottom: "40px" }}>
+                    <div style={{ marginBottom: "40px", marginTop: "30px" }}>
                       <div style={{ 
                         display: "grid", 
                         gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
@@ -495,6 +588,12 @@ function resizeBase64Image(base64Image: string, width: number, height: number): 
             <ImageIngredients
               images={selectedImgSrc}
               language={language}
+              recipeContext={{
+                time: recipeTime?.value,
+                people: recipePeople?.value,
+                equipment: recipeEquipment?.value,
+                budget: recipeBudget?.value,
+              }}
               onRecipePropositionsDone={() => {
                 setShowWebcam(false);
               }}

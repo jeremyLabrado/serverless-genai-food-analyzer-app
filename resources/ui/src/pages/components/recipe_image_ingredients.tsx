@@ -15,12 +15,19 @@ import { FlowItems } from "./flowitems";
 interface RecipeImageIngredientsProps {
   images: string[];
   language: string;
+  recipeContext?: {
+    time?: string;
+    people?: string;
+    equipment?: string;
+    budget?: string;
+  };
   onRecipePropositionsDone?: () => void;
 }
 
 const RecipeImageIngredients: React.FC<RecipeImageIngredientsProps> = ({
   images,
   language,
+  recipeContext,
   onRecipePropositionsDone,
 }) => {
   const currentTranslations = customTranslations[language];
@@ -96,6 +103,7 @@ const RecipeImageIngredients: React.FC<RecipeImageIngredientsProps> = ({
             <RecipePropositions
               language={language}
               ingredients={imageIngredientsResponse}
+              recipeContext={recipeContext}
             ></RecipePropositions>
           </SpaceBetween>
         </div>

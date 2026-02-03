@@ -44,12 +44,6 @@ Take a photo of your fridge to get:
 - Step-by-step cooking instructions
 - **Missing ingredients ready for cart** (future: auto-add to cart)
 
-### 3. Demo Mode for Faster Testing
-- 3 pre-loaded sample fridge images
-- One-click testing without camera setup
-- Instant recipe generation for demos and trade shows
-
-
 ## Demo
 ![Demo GIF](img/FoodLens.gif)
 

@@ -15,6 +15,12 @@ import ReactMarkdown from "react-markdown";
 interface RecipeProposalProps {
   language: string;
   ingredients: string[];
+  recipeContext?: {
+    time?: string;
+    people?: string;
+    equipment?: string;
+    budget?: string;
+  };
 }
 
 const RecipeItem = ({ label, value }: { label: string; value: string }) => {
@@ -28,6 +34,7 @@ const RecipeItem = ({ label, value }: { label: string; value: string }) => {
 const RecipeProposal: React.FC<RecipeProposalProps> = ({
   language,
   ingredients,
+  recipeContext,
 }) => {
   const currentTranslations = customTranslations[language];
 
@@ -124,6 +131,7 @@ const RecipeProposal: React.FC<RecipeProposalProps> = ({
           dislikedIngredients: dislikedArray,
           favoriteCuisines: cuisinesArray,
           ingredients: ingredients,
+          recipeContext: recipeContext || {},
         };
 
         setLoadingRecipePropositions(true);
