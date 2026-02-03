@@ -172,7 +172,14 @@ def handler(event, context):
     # Recipe context constraints
     time_constraint = f"Total cooking time (prep + cook) must not exceed {recipe_context.get('time', 30)} minutes." if recipe_context.get('time') else ""
     people_constraint = f"Recipe must serve {recipe_context.get('people', 4)} people." if recipe_context.get('people') else ""
-    equipment_constraint = f"Use only {recipe_context.get('equipment', 'all')} equipment." if recipe_context.get('equipment') and recipe_context.get('equipment') != 'all' else ""
+    
+    equipment_list = recipe_context.get('equipment', [])
+    if equipment_list and len(equipment_list) > 0:
+        equipment_names = ', '.join([e.get('value', e) if isinstance(e, dict) else e for e in equipment_list])
+        equipment_constraint = f"Use only these equipment: {equipment_names}."
+    else:
+        equipment_constraint = ""
+    
     budget_constraint = f"Keep ingredient cost under ${recipe_context.get('budget', 10)} per person." if recipe_context.get('budget') else ""
     
     # nosemgrep

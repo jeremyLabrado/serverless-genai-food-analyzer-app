@@ -7,6 +7,7 @@ import {
   Input,
   FormField,
   Grid,
+  Multiselect,
 } from "@cloudscape-design/components";
 import Button from "@cloudscape-design/components/button";
 import customTranslations from "../../assets/i18n/all";
@@ -36,10 +37,13 @@ const Recipe: React.FC = () => {
   // Recipe context state
   const [recipeTime, setRecipeTime] = useState<any>({ label: "30 min", value: "30" });
   const [recipePeople, setRecipePeople] = useState<any>({ label: "4 people", value: "4" });
-  const [recipeEquipment, setRecipeEquipment] = useState<any>({ label: "All", value: "all" });
+  const [recipeEquipment, setRecipeEquipment] = useState<readonly any[]>([]);
   const [recipeBudget, setRecipeBudget] = useState<any>({ label: "$10", value: "10" });
 
   const { devMode } = useContext(DevModeContext);
+
+  // Currency symbol based on language
+  const currencySymbol = ['french', 'spanish', 'italian'].includes(language) ? '€' : '$';
 
   // Load recipe context from localStorage
   useEffect(() => {
@@ -48,7 +52,7 @@ const Recipe: React.FC = () => {
       const context = JSON.parse(stored);
       setRecipeTime(context.time || { label: "30 min", value: "30" });
       setRecipePeople(context.people || { label: "4 people", value: "4" });
-      setRecipeEquipment(context.equipment || { label: "All", value: "all" });
+      setRecipeEquipment(context.equipment || []);
       setRecipeBudget(context.budget || { label: "$10", value: "10" });
     }
   }, []);
@@ -250,26 +254,28 @@ function resizeBase64Image(base64Image: string, width: number, height: number): 
                   {!imgSrc && capturedImages.length === 0 && (
                     <div style={{
                       background: "linear-gradient(135deg, #00C853 0%, #64DD17 100%)",
-                      borderRadius: "20px",
-                      padding: "40px 20px",
-                      marginBottom: "30px",
-                      boxShadow: "0 10px 40px rgba(0, 200, 83, 0.25)",
+                      borderRadius: "16px",
+                      padding: "20px 16px",
+                      marginBottom: "20px",
+                      boxShadow: "0 4px 16px rgba(0, 200, 83, 0.2)",
                     }}>
                       <h1 style={{
-                        fontSize: "2.5rem",
+                        fontSize: "clamp(1.3rem, 4vw, 2.5rem)",
                         fontWeight: "700",
                         color: "#fff",
-                        marginBottom: "10px",
+                        marginBottom: "6px",
                         textShadow: "0 2px 10px rgba(0,0,0,0.2)",
+                        lineHeight: "1.2",
                       }}>
                         🛒 Shop Smarter with AI
                       </h1>
                       <p style={{
                         color: "rgba(255, 255, 255, 0.95)",
-                        fontSize: "1.1rem",
+                        fontSize: "clamp(0.85rem, 2.5vw, 1.1rem)",
                         marginBottom: "0",
+                        lineHeight: "1.3",
                       }}>
-                        Show us your fridge - we'll suggest recipes and add missing ingredients to your cart
+                        Snap your fridge → Get recipes → Add to cart
                       </p>
                     </div>
                   )}
@@ -278,8 +284,12 @@ function resizeBase64Image(base64Image: string, width: number, height: number): 
                   {!imgSrc && capturedImages.length === 0 && (
                     <Container>
                       <SpaceBetween direction="vertical" size="s">
-                        <h3 style={{ margin: "0 0 16px 0", color: "#333" }}>Recipe Context</h3>
-                        <Grid gridDefinition={[{ colspan: 3 }, { colspan: 3 }, { colspan: 3 }, { colspan: 3 }]}>
+                        <h3 style={{ margin: "0 0 16px 0", color: "#333", fontSize: "1.2rem" }}>Recipe Context</h3>
+                        <div style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+                          gap: "12px",
+                        }}>
                           <FormField label="Time">
                             <Select
                               selectedOption={recipeTime}
@@ -298,41 +308,45 @@ function resizeBase64Image(base64Image: string, width: number, height: number): 
                               selectedOption={recipePeople}
                               onChange={({ detail }) => setRecipePeople(detail.selectedOption)}
                               options={[
-                                { label: "1 person", value: "1" },
-                                { label: "2 people", value: "2" },
-                                { label: "4 people", value: "4" },
-                                { label: "6 people", value: "6" },
-                                { label: "8+ people", value: "8" },
+                                { label: currentTranslations["people_1"], value: "1" },
+                                { label: currentTranslations["people_2"], value: "2" },
+                                { label: currentTranslations["people_4"], value: "4" },
+                                { label: currentTranslations["people_6"], value: "6" },
+                                { label: currentTranslations["people_8"], value: "8" },
                               ]}
                             />
                           </FormField>
                           <FormField label="Equipment">
-                            <Select
-                              selectedOption={recipeEquipment}
-                              onChange={({ detail }) => setRecipeEquipment(detail.selectedOption)}
+                            <Multiselect
+                              selectedOptions={recipeEquipment}
+                              onChange={({ detail }) => setRecipeEquipment(detail.selectedOptions)}
                               options={[
-                                { label: "All", value: "all" },
-                                { label: "Stovetop only", value: "stovetop" },
-                                { label: "Oven only", value: "oven" },
-                                { label: "Microwave only", value: "microwave" },
-                                { label: "No cooking", value: "none" },
+                                { label: currentTranslations["equipment_stovetop"], value: "stovetop" },
+                                { label: currentTranslations["equipment_oven"], value: "oven" },
+                                { label: currentTranslations["equipment_microwave"], value: "microwave" },
+                                { label: currentTranslations["equipment_airfryer"], value: "airfryer" },
+                                { label: currentTranslations["equipment_instantpot"], value: "instantpot" },
+                                { label: currentTranslations["equipment_ricecooker"], value: "ricecooker" },
+                                { label: currentTranslations["equipment_blender"], value: "blender" },
+                                { label: currentTranslations["equipment_foodprocessor"], value: "foodprocessor" },
                               ]}
+                              placeholder="Select"
                             />
                           </FormField>
-                          <FormField label="Budget per person">
+                          <FormField label="Budget">
                             <Select
                               selectedOption={recipeBudget}
                               onChange={({ detail }) => setRecipeBudget(detail.selectedOption)}
                               options={[
-                                { label: "$5", value: "5" },
-                                { label: "$10", value: "10" },
-                                { label: "$15", value: "15" },
-                                { label: "$20", value: "20" },
-                                { label: "$30+", value: "30" },
+                                { label: `${currencySymbol}5`, value: "5" },
+                                { label: `${currencySymbol}10`, value: "10" },
+                                { label: `${currencySymbol}15`, value: "15" },
+                                { label: `${currencySymbol}20`, value: "20" },
+                                { label: `${currencySymbol}30+`, value: "30" },
                               ]}
                             />
                           </FormField>
-                        </Grid>
+                        </div>
                       </SpaceBetween>
                     </Container>
                   )}
@@ -433,40 +447,82 @@ function resizeBase64Image(base64Image: string, width: number, height: number): 
                 </div>
               )}
 
-              {/* Conditionally render the image */}
+              {/* Selected fridge image - modern card */}
               {capturedImages.length > 0 && !imgSrc && (
-                <div style={{ textAlign: "center" }}>
-                  <h4>{currentTranslations["recipe_captured_images"]} ({capturedImages.length})</h4>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", justifyContent: "center" }}>
+                <div style={{
+                  background: "#fff",
+                  borderRadius: "20px",
+                  padding: "32px",
+                  boxShadow: "0 8px 32px rgba(0, 200, 83, 0.15)",
+                  maxWidth: "600px",
+                  margin: "0 auto",
+                }}>
+                  {/* Success badge */}
+                  <div style={{
+                    background: "linear-gradient(135deg, #00C853 0%, #64DD17 100%)",
+                    borderRadius: "12px",
+                    padding: "12px 20px",
+                    marginBottom: "24px",
+                    textAlign: "center",
+                  }}>
+                    <p style={{
+                      color: "#fff",
+                      margin: 0,
+                      fontSize: "1rem",
+                      fontWeight: "600",
+                    }}>
+                      ✅ {currentTranslations["recipe_captured_images"]} ({capturedImages.length})
+                    </p>
+                  </div>
+
+                  {/* Large preview image */}
+                  <div style={{ position: "relative", marginBottom: "24px" }}>
                     {capturedImages.map((img, index) => (
                       <div key={index} style={{ position: "relative" }}>
                         <img
                           src={img}
                           style={{
-                            borderRadius: "5px",
-                            height: "150px",
+                            width: "100%",
+                            height: "400px",
                             objectFit: "cover",
+                            borderRadius: "16px",
+                            boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
                           }}
                         />
-                        <Button
-                          iconName="close"
-                          variant="icon"
-                          onClick={() => removeImage(index)}
-                          ariaLabel="Remove image"
-                        />
+                        <div style={{
+                          position: "absolute",
+                          top: "12px",
+                          right: "12px",
+                        }}>
+                          <Button
+                            iconName="close"
+                            variant="icon"
+                            onClick={() => removeImage(index)}
+                            ariaLabel="Remove image"
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>
-                  <div style={{ marginTop: "10px" }}>
-                    <SpaceBetween direction="horizontal" size="s">
-                      <Button onClick={startWebcam} variant="normal">
-                        {currentTranslations["recipe_add_more"]}
-                      </Button>
-                      <Button onClick={useTheseImages} variant="primary">
-                        {currentTranslations["recipe_generate_recipes"]}
-                      </Button>
-                    </SpaceBetween>
-                  </div>
+
+                  {/* Action buttons */}
+                  <SpaceBetween direction="vertical" size="m">
+                    <Button 
+                      onClick={useTheseImages} 
+                      variant="primary"
+                      fullWidth
+                      iconName="search"
+                    >
+                      🔍 {currentTranslations["recipe_generate_recipes"]}
+                    </Button>
+                    <Button 
+                      onClick={startWebcam} 
+                      variant="normal"
+                      fullWidth
+                    >
+                      📷 {currentTranslations["recipe_add_more"]}
+                    </Button>
+                  </SpaceBetween>
                 </div>
               )}
 
@@ -591,7 +647,7 @@ function resizeBase64Image(base64Image: string, width: number, height: number): 
               recipeContext={{
                 time: recipeTime?.value,
                 people: recipePeople?.value,
-                equipment: recipeEquipment?.value,
+                equipment: recipeEquipment,
                 budget: recipeBudget?.value,
               }}
               onRecipePropositionsDone={() => {

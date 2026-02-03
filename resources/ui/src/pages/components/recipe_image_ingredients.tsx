@@ -18,7 +18,7 @@ interface RecipeImageIngredientsProps {
   recipeContext?: {
     time?: string;
     people?: string;
-    equipment?: string;
+    equipment?: readonly any[];
     budget?: string;
   };
   onRecipePropositionsDone?: () => void;
@@ -36,6 +36,22 @@ const RecipeImageIngredients: React.FC<RecipeImageIngredientsProps> = ({
     any[]
   >([]);
   const [responseReceived, setResponseReceived] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(0);
+
+  useEffect(() => {
+    // Simulate loading steps
+    if (loadingImageIngredients) {
+      const steps = [0, 1, 2, 3];
+      let currentStep = 0;
+      const interval = setInterval(() => {
+        if (currentStep < steps.length) {
+          setLoadingStep(steps[currentStep]);
+          currentStep++;
+        }
+      }, 800);
+      return () => clearInterval(interval);
+    }
+  }, [loadingImageIngredients]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -66,10 +82,68 @@ const RecipeImageIngredients: React.FC<RecipeImageIngredientsProps> = ({
   return (
     <TextContent>
       {loadingImageIngredients && (
-        <div>
-          <Alert>
-            <strong>{currentTranslations["image_ingredients_loading"]}</strong>
-          </Alert>
+        <div style={{
+          background: "#fff",
+          borderRadius: "16px",
+          padding: "32px 24px",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+          maxWidth: "500px",
+          margin: "0 auto",
+        }}>
+          <div style={{ textAlign: "center", marginBottom: "24px" }}>
+            <div style={{ fontSize: "3rem", marginBottom: "12px" }}>🤖</div>
+            <h3 style={{ fontSize: "1.3rem", color: "#333", margin: "0 0 8px 0" }}>
+              AI is working its magic
+            </h3>
+            <p style={{ color: "#666", fontSize: "0.9rem", margin: 0 }}>
+              Analyzing your fridge...
+            </p>
+          </div>
+
+          {/* Progress Steps */}
+          <div style={{
+            background: "#f5f5f5",
+            borderRadius: "12px",
+            padding: "16px",
+            marginBottom: "20px",
+          }}>
+            <SpaceBetween size="xs">
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "1.2rem" }}>{loadingStep >= 0 ? "✅" : "⏳"}</span>
+                <span style={{ color: loadingStep >= 0 ? "#00C853" : "#999" }}>
+                  Analyzing ingredients
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "1.2rem" }}>{loadingStep >= 1 ? "✅" : "⏳"}</span>
+                <span style={{ color: loadingStep >= 1 ? "#00C853" : "#999" }}>
+                  Matching to recipes
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "1.2rem" }}>{loadingStep >= 2 ? "✅" : "⏳"}</span>
+                <span style={{ color: loadingStep >= 2 ? "#00C853" : "#999" }}>
+                  Checking your preferences
+                </span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "1.2rem" }}>{loadingStep >= 3 ? "✅" : "⏳"}</span>
+                <span style={{ color: loadingStep >= 3 ? "#00C853" : "#999" }}>
+                  Optimizing for your goals
+                </span>
+              </div>
+            </SpaceBetween>
+          </div>
+
+          {/* Tip */}
+          <div style={{
+            textAlign: "center",
+            color: "#666",
+            fontSize: "0.85rem",
+            fontStyle: "italic",
+          }}>
+            💡 This usually takes 3-5 seconds
+          </div>
         </div>
       )}
 
@@ -81,14 +155,7 @@ const RecipeImageIngredients: React.FC<RecipeImageIngredientsProps> = ({
                 <TokenGroup
                   items={imageIngredientsResponse.map((item, index) => ({
                     label: item,
-                    dismissLabel: `Remove ${item}`,
                   }))}
-                  onDismiss={({ detail: { itemIndex } }) => {
-                    setImageIngredientsResponse([
-                      ...imageIngredientsResponse.slice(0, itemIndex),
-                      ...imageIngredientsResponse.slice(itemIndex + 1),
-                    ]);
-                  }}
                 />
               }
               header={
