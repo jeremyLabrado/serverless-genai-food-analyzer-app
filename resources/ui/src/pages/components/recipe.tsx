@@ -34,41 +34,26 @@ const Recipe: React.FC = () => {
 
   const { devMode } = useContext(DevModeContext);
 
-  const loadMockFridgeImages = async () => {
-    // These images are served from S3 via CloudFront /img/ path
-    const mockImages = [
-      'fridge1.jpeg',
-      'fridge2.jpeg',
-      'fridge3.jpeg'
-    ];
-    
-    const loadedImages: string[] = [];
-    
-    for (const imgName of mockImages) {
-      try {
-        // Fetch from the img folder in the project root
-        const imgPath = `/img/${imgName}`;
-        const response = await fetch(imgPath);
-        const blob = await response.blob();
-        const reader = new FileReader();
-        
-        await new Promise((resolve) => {
-          reader.onloadend = () => {
-            if (reader.result) {
-              loadedImages.push(reader.result as string);
-            }
-            resolve(null);
-          };
-          reader.readAsDataURL(blob);
-        });
-      } catch (error) {
-        console.error(`Failed to load fridge image ${imgName}:`, error);
-      }
-    }
-    
-    if (loadedImages.length > 0) {
-      setCapturedImages(loadedImages);
-      setShowOptionsButtons(true);
+  const loadSingleMockImage = async (imageNumber: number) => {
+    const imgName = `fridge${imageNumber}.jpeg`;
+    try {
+      const imgPath = `/img/${imgName}`;
+      const response = await fetch(imgPath);
+      const blob = await response.blob();
+      const reader = new FileReader();
+      
+      await new Promise((resolve) => {
+        reader.onloadend = () => {
+          if (reader.result) {
+            setCapturedImages([reader.result as string]);
+            setShowOptionsButtons(true);
+          }
+          resolve(null);
+        };
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error(`Failed to load ${imgName}:`, error);
     }
   };
 
@@ -232,67 +217,124 @@ function resizeBase64Image(base64Image: string, width: number, height: number): 
               {/* Render the button only when imgSrc is available */}
               {!showWebcam && (
                 <div style={{ textAlign: "center" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "center",
-                      alignItems: "center",
-                      gap: "16px",
-                    }}
-                  >
-                    <Button variant="primary" onClick={startWebcam}>
-                      {currentTranslations["recipe_button_label"]}
-                    </Button>
-                    {devMode && (
-                      <>
-                        <FileUpload
-                          onChange={fileUploadOnChange}
-                          value={myValue}
-                          accept="image/png, image/jpg"
-                          i18nStrings={{
-                            uploadButtonText: (e) =>
-                              e
-                                ? currentTranslations["recipe_button_file_label"]
-                                : currentTranslations["recipe_button_file_label"],
-                            dropzoneText: (e) =>
-                              e ? "Drop files to upload" : "Drop file to upload",
-                            removeFileAriaLabel: (e) => `Remove file ${e + 1}`,
-                            limitShowFewer: "Show fewer files",
-                            limitShowMore: "Show more files",
-                            errorIconAriaLabel: "Error",
-                          }}
-                          tokenLimit={1}
-                        />
-                        <Button 
-                          variant="normal" 
-                          iconName="upload"
-                          onClick={loadMockFridgeImages}
-                        >
-                          Load Test Images
-                        </Button>
-                      </>
-                    )}
-                  </div>
-
-                  {!imgSrc && (
-                    <div style={{ textAlign: "left" }}>
-                      <h4>{currentTranslations["recipe_main_title"]}</h4>
-
-                      <SpaceBetween direction="vertical" size="m">
-                        <div>
-                          <p>
-                            <Badge color="green">1</Badge>{" "}
-                            {currentTranslations["recipe_label_1"]}{" "}
-                            <Link href="/preference">
-                              {currentTranslations["recipe_label_2"]}
-                            </Link>
-                          </p>
-                          <p>
-                            <Badge color="green">2</Badge>{" "}
-                            {currentTranslations["recipe_label_3"]}
-                          </p>                          
-                        </div>
-                      </SpaceBetween>
+                  {!imgSrc && capturedImages.length === 0 && (
+                    <div style={{
+                      background: "linear-gradient(135deg, #00C853 0%, #64DD17 100%)",
+                      borderRadius: "20px",
+                      padding: "40px 20px",
+                      marginBottom: "30px",
+                      boxShadow: "0 10px 40px rgba(0, 200, 83, 0.25)",
+                    }}>
+                      <h1 style={{
+                        fontSize: "2.5rem",
+                        fontWeight: "700",
+                        color: "#fff",
+                        marginBottom: "10px",
+                        textShadow: "0 2px 10px rgba(0,0,0,0.2)",
+                      }}>
+                        🛒 Shop Smarter with AI
+                      </h1>
+                      <p style={{
+                        color: "rgba(255, 255, 255, 0.95)",
+                        fontSize: "1.1rem",
+                        marginBottom: "0",
+                      }}>
+                        Show us your fridge - we'll suggest recipes and add missing ingredients to your cart
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Sample fridge images - hero cards */}
+                  {!imgSrc && capturedImages.length === 0 && (
+                    <div style={{ marginBottom: "40px" }}>
+                      <div style={{ 
+                        display: "grid", 
+                        gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+                        gap: "24px", 
+                        maxWidth: "900px",
+                        margin: "0 auto",
+                        padding: "0 20px",
+                      }}>
+                        {[
+                          { num: 1, title: "🥬 Fresh & Healthy" },
+                          { num: 2, title: "🍖 Meal Prep Ready" },
+                          { num: 3, title: "🍊 Family Favorites" }
+                        ].map(({ num, title }) => (
+                          <div
+                            key={num}
+                            onClick={() => loadSingleMockImage(num)}
+                            style={{
+                              position: "relative",
+                              cursor: "pointer",
+                              borderRadius: "16px",
+                              overflow: "hidden",
+                              boxShadow: "0 8px 24px rgba(0, 0, 0, 0.12)",
+                              transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+                              background: "#fff",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.transform = "translateY(-8px) scale(1.02)";
+                              e.currentTarget.style.boxShadow = "0 16px 48px rgba(0, 200, 83, 0.35)";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.transform = "translateY(0) scale(1)";
+                              e.currentTarget.style.boxShadow = "0 8px 24px rgba(0, 0, 0, 0.12)";
+                            }}
+                          >
+                            <div style={{
+                              position: "absolute",
+                              top: "12px",
+                              left: "12px",
+                              right: "12px",
+                              background: "rgba(255, 255, 255, 0.95)",
+                              color: "#333",
+                              padding: "8px 16px",
+                              borderRadius: "12px",
+                              fontSize: "1rem",
+                              fontWeight: "700",
+                              zIndex: 10,
+                              backdropFilter: "blur(10px)",
+                              boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                            }}>
+                              {title}
+                            </div>
+                            <img
+                              src={`/img/fridge${num}.jpeg`}
+                              alt={title}
+                              style={{
+                                width: "100%",
+                                height: "320px",
+                                objectFit: "cover",
+                                display: "block",
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Camera option - minimal, below cards */}
+                  {!imgSrc && capturedImages.length === 0 && (
+                    <div style={{
+                      textAlign: "center",
+                      padding: "20px",
+                      borderTop: "1px solid #e0e0e0",
+                      marginTop: "20px",
+                    }}>
+                      <p style={{ 
+                        color: "#666", 
+                        marginBottom: "12px",
+                        fontSize: "0.95rem",
+                      }}>
+                        Or use your own ingredients
+                      </p>
+                      <Button 
+                        variant="normal" 
+                        onClick={startWebcam}
+                      >
+                        📷 Take Your Own Photo
+                      </Button>
                     </div>
                   )}
                 </div>

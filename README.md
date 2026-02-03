@@ -1,28 +1,53 @@
-# Food analyzer app
+# Food Analyzer App
 
-**Food analyzer app** is a personalized GenAI nutritional webapp for your shopping and cooking recipes built with serverless architecture and generative AI capabilities. It was first created as the winner of the AWS Hackathon France 2024 and then introduced at several AWS Summit.
+**Food Analyzer App** is a GenAI-powered shopping assistant for grocery retailers, built with serverless architecture and generative AI capabilities. Originally created as the winner of AWS Hackathon France 2024 and showcased at AWS Summits worldwide.
 
-- Customers use their cell phone to scan a bar code of a product to get the explanations of the ingredients and nutritional information of a grocery product personalized with your allergies and diet.
-- Customers can also take a picture of food products and discover 3 personalized recipes based on their food preferences.
+## Target Market
 
-The back-end of the app is made using AWS services such as:
-- Amazon Cognito
-- AWS LambdaURL
-- Amazon DynamoDB
-- Amazon S3
-- Amazon Bedrock
+**B2B2C Solution for Grocery Retailers**: Leclerc, Carrefour, Walmart, Trader Joe's, and other grocery chains looking to enhance customer experience and increase basket size.
 
-The app is designed to have minimal code, be extensible, scalable, and cost-efficient. It uses Lazy Loading to reduce cost and ensure the best user experience.
+## Customer Value Proposition
 
-We developed this exhibit to create an interactive serverless application using generative AI services. 
+- **Scan barcodes** to get personalized nutritional information, ingredient explanations, and allergen warnings
+- **Photo your fridge** to discover personalized recipes based on what you already have
+- **Auto-add missing ingredients** to cart - reducing food waste while increasing sales
 
+## Business Benefits for Retailers
 
-## Features overview
+- ✅ **Increase basket size**: Customers add missing recipe ingredients to cart
+- ✅ **Reduce food waste**: Recipes use existing ingredients first
+- ✅ **Enhance loyalty**: Personalized experience builds customer engagement
+- ✅ **Differentiation**: AI-powered shopping assistant as competitive advantage
+- ✅ **Data insights**: Understand customer preferences and dietary trends
 
-- **Personalized product information**: Curious about what is in a product and if it is good for you?
-Just scan the barcode with the app for an explained list of ingredients/allergens and a personalized summary based on your preferences, health goals, and dietary restrictions. The app provides direct allergen detection and quantitative nutritional analysis using data from Open Food Facts.
+## Core Features
 
-- **Personalized recipe generator**: Capture multiple photos of ingredients in your fridge and pantry, and the app will generate recipes based on your preferences using those ingredients.
+### 1. Personalized Product Information
+Scan any barcode to get:
+- Explained ingredient list with allergen warnings
+- Personalized nutritional summary based on health goals
+- Dietary compatibility (vegan, keto, halal, kosher, etc.)
+- AI-generated product visualization
+- Data from Open Food Facts database
+
+### 2. Smart Recipe Generator
+Take a photo of your fridge to get:
+- 3 personalized recipe suggestions (easy, medium, hard)
+- Recipes respect **all 6 user preferences**:
+  1. Allergies (eggs, nuts, gluten, etc.)
+  2. Dietary preferences (vegan, vegetarian, keto, low-carb, etc.)
+  3. Health goals (weight loss, muscle gain, maintain weight)
+  4. Religious requirements (halal, kosher, hindu)
+  5. Disliked ingredients (cilantro, mushrooms, onions, etc.)
+  6. Favorite cuisines (Italian, Asian, Mediterranean, etc.)
+- AI-generated recipe images
+- Step-by-step cooking instructions
+- **Missing ingredients ready for cart** (future: auto-add to cart)
+
+### 3. Demo Mode for Faster Testing
+- 3 pre-loaded sample fridge images
+- One-click testing without camera setup
+- Instant recipe generation for demos and trade shows
 
 
 ## Demo
@@ -142,9 +167,9 @@ The architecture of the application can be split in 4 blocks:
   - Easy recipe with few ingredients and made in less than 15 minutes
   - Medium recipe with more ingredients and intermediate complexity
   - Hard recipe with even more ingredients and high complexity.
-Each recipe must also respect the user's dietary restrictions and allergies.
+Each recipe must respect **all 6 user preferences**: allergies, dietary preferences (vegan, keto, etc.), health goals (weight loss, muscle gain), religious requirements (halal, kosher, hindu), disliked ingredients, and favorite cuisines.
 
-- **Implementation**: We use Claude 3 Sonnet to generate the 3 recipes. Each recipe contains the following JSON information:
+- **Implementation**: We use Claude 3 Sonnet to generate the 3 recipes. The Lambda function receives all user preferences from localStorage and constructs explicit constraints in the prompt. Each recipe contains the following JSON information:
 
 ```json 
 {
@@ -202,7 +227,28 @@ The output format is a Markdown file to faciliate the display of the recipe on t
 
 **User Personalization Complexity**
 
-- **Challenge**: Integrating personalized dietary preferences and restrictions into the model presented complexity.
+- **Challenge**: Integrating all user preferences into recipe generation to ensure truly personalized recommendations.
+
+- **Solution**: The app now captures and processes **6 distinct preference types** from the user profile:
+  1. **Allergies**: Eggs, nuts, gluten, dairy, etc.
+  2. **Dietary Preferences**: Vegan, vegetarian, keto, paleo, low-carb, etc.
+  3. **Health Goals**: Weight loss, muscle gain, maintain weight, general health
+  4. **Religious Requirements**: Halal, kosher, hindu dietary laws
+  5. **Disliked Ingredients**: Cilantro, mushrooms, onions, garlic, spicy foods
+  6. **Favorite Cuisines**: Italian, Asian, Mexican, Mediterranean, French, Indian, Middle Eastern
+
+The frontend sends all preferences to the Lambda function, which constructs explicit constraints in the LLM prompt. This ensures recipes respect all user requirements simultaneously, providing truly personalized meal suggestions that align with dietary needs, taste preferences, and lifestyle goals.
+
+**Demo Mode for Trade Shows and Testing**
+
+- **Challenge**: Setting up cameras and capturing real fridge photos is time-consuming during demos, trade shows, and development testing.
+
+- **Solution**: Implemented instant demo mode with 3 pre-loaded sample fridge images:
+  - **🥬 Fresh & Healthy**: Vegetable-focused fridge
+  - **🍖 Meal Prep Ready**: Protein and prepared foods
+  - **🍊 Family Favorites**: Fruits and family staples
+  
+Users can click any sample fridge image for instant recipe generation, or use their own camera. This reduces demo time from 5+ minutes to under 30 seconds, making it ideal for retail environments, trade shows, and rapid testing cycles.
 
 - **Solution**: To enhance the LLM's understanding, we dynamically incorporated a header in our prompt containing personalized allergy and diet inputs. This approach significantly improved the accuracy and relevance of the LLM's responses, ensuring a tailored experience for users. Personalized prompts became a cornerstone in delivering precise and relevant information based on individual preferences.
 
