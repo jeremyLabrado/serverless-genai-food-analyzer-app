@@ -11,6 +11,7 @@ import customTranslations from "../../assets/i18n/all";
 import RecipePropositions from "./recipe_proposals";
 import { FlowItems } from "./flowitems";
 import { JourneyProgress } from "./journey-progress";
+import { getRandomFunFact } from "../../utils/fun-facts";
 
 interface RecipeImageIngredientsProps {
   images: string[];
@@ -37,6 +38,7 @@ const RecipeImageIngredients: React.FC<RecipeImageIngredientsProps> = ({
   >([]);
   const [responseReceived, setResponseReceived] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
+  const [funFact, setFunFact] = useState("");
 
   useEffect(() => {
     // Simulate loading steps
@@ -49,6 +51,10 @@ const RecipeImageIngredients: React.FC<RecipeImageIngredientsProps> = ({
           currentStep++;
         }
       }, 800);
+      
+      // Set random fun fact
+      setFunFact(getRandomFunFact());
+      
       return () => clearInterval(interval);
     }
   }, [loadingImageIngredients]);
@@ -135,14 +141,24 @@ const RecipeImageIngredients: React.FC<RecipeImageIngredientsProps> = ({
             </SpaceBetween>
           </div>
 
-          {/* Tip */}
+          {/* Fun Fact */}
           <div style={{
-            textAlign: "center",
-            color: "#666",
-            fontSize: "0.85rem",
-            fontStyle: "italic",
+            background: "#FFF9E6",
+            borderRadius: "12px",
+            padding: "16px",
+            border: "1px solid #FFE082",
           }}>
-            💡 This usually takes 3-5 seconds
+            <h4 style={{ fontSize: "0.9rem", margin: "0 0 8px 0", color: "#F57C00", fontWeight: "600" }}>
+              💡 Did you know?
+            </h4>
+            <p style={{
+              color: "#666",
+              fontSize: "0.85rem",
+              margin: 0,
+              lineHeight: "1.5",
+            }}>
+              {funFact}
+            </p>
           </div>
         </div>
       )}
@@ -257,16 +273,6 @@ const RecipeImageIngredients: React.FC<RecipeImageIngredientsProps> = ({
                   </SpaceBetween>
                 );
               })()}
-
-              <div style={{ marginTop: "20px", paddingTop: "20px", borderTop: "1px solid #e0e0e0" }}>
-                <Button
-                  variant="primary"
-                  fullWidth
-                  onClick={() => {}}
-                >
-                  🔍 Generate Recipes
-                </Button>
-              </div>
             </div>
 
             <RecipePropositions

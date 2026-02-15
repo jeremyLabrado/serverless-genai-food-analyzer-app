@@ -4,44 +4,44 @@
 
 export const ingredientBarcodeMap: Record<string, string> = {
   // Fruits
-  "oranges": "20241681",
-  "orange": "20241681",
-  "apples": "20247737",
-  "apple": "20247737",
+  "oranges": "5010251850700",
+  "orange": "5010251850700",
+  "apples": "4088600149134",
+  "apple": "4088600149134",
   "grapes": "5010525237435",
   "grape": "5010525237435",
-  "strawberries": "03257340",
-  "strawberry": "03257340",
+  "strawberries": "9320800000484",
+  "strawberry": "9320800000484",
   "bananas": "3250393062582",
   "banana": "3250393062582",
   
   // Vegetables
-  "onions": "00131544",
-  "onion": "00131544",
-  "potatoes": "03266274",
-  "potato": "03266274",
-  "carrots": "01007770",
-  "carrot": "01007770",
+  "onions": "3662093000052",
+  "onion": "3662093000052",
+  "potatoes": "8904970597004",
+  "potato": "8904970597004",
+  "carrots": "5054781580058",
+  "carrot": "5054781580058",
   "lettuce": "0033383650203",
-  "tomatoes": "20242121",
-  "tomato": "20242121",
-  "bell peppers": "00740265",
-  "bell pepper": "00740265",
+  "tomatoes": "4056489012160",
+  "tomato": "4056489012160",
+  "bell peppers": "8435363503066",
+  "bell pepper": "8435363503066",
   "broccoli": "3606760065326",
   "cauliflower": "5056053308827",
   "kale": "8437013139335",
   "spinach": "5053526969790",
-  "mushrooms": "20004088",
-  "mushroom": "20004088",
-  "zucchini": "4067",
-  "cucumber": "10015599",
+  "mushrooms": "4088600191157",
+  "mushroom": "4088600191157",
+  "zucchini": "4005817079610",
+  "cucumber": "5055540017778",
   "garlic": "3061431103811",
   
   // Proteins
   "chicken": "3270160005451",
   "chicken breast": "3270160005451",
-  "beef": "4056489106425",
-  "ground beef": "4056489106425",
+  "beef": "3245415074179",
+  "ground beef": "3245415074179",
   "pork": "4088700133835",
   "ground pork": "4088700133835",
   "salmon": "5057373699688",
@@ -67,14 +67,14 @@ export const ingredientBarcodeMap: Record<string, string> = {
   
   // Herbs & Spices
   "honey": "3088540004440",
-  "cinnamon": "20382063",
+  "cinnamon": "8480000341778",
   "rosemary": "5060198820847",
   "thyme": "5050083459825",
   "peppercorns": "5060198641169",
   "black peppercorns": "5060198641169",
   "black pepper": "3270190208228",
   "pepper": "3270190208228",
-  "salt": "3270190208211",
+  "salt": "6111184001562",
   "sugar": "3270190208235",
   
   // Condiments & Oils
@@ -99,5 +99,18 @@ export const getMockPrice = (ingredient: string): number => {
 // Get barcode for ingredient (if exists)
 export const getBarcode = (ingredient: string): string | null => {
   const normalized = ingredient.toLowerCase().trim();
-  return ingredientBarcodeMap[normalized] || null;
+  
+  // Try exact match first
+  if (ingredientBarcodeMap[normalized]) {
+    return ingredientBarcodeMap[normalized];
+  }
+  
+  // Try partial match - check if ingredient contains any mapped key
+  for (const [key, barcode] of Object.entries(ingredientBarcodeMap)) {
+    if (normalized.includes(key)) {
+      return barcode;
+    }
+  }
+  
+  return null;
 };

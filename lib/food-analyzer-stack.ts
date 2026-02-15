@@ -100,6 +100,33 @@ export class FoodAnalyzerStack extends Stack {
       }
     );
 
+    const recipeCacheTable = new dynamodb.Table(
+      this,
+      "RecipeCacheTable",
+      {
+        partitionKey: {
+          name: "ingredients_hash",
+          type: dynamodb.AttributeType.STRING,
+        },
+        sortKey: { name: "params_hash", type: dynamodb.AttributeType.STRING },
+        billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+        encryption: TableEncryption.DEFAULT,
+      }
+    );
+
+    const ingredientCacheTable = new dynamodb.Table(
+      this,
+      "IngredientCacheTable",
+      {
+        partitionKey: {
+          name: "image_hash",
+          type: dynamodb.AttributeType.STRING,
+        },
+        billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+        encryption: TableEncryption.DEFAULT,
+      }
+    );
+
     const myResponseHeadersPolicy = new cloudfront.ResponseHeadersPolicy(
       this,
       "ResponseHeadersPolicy",
@@ -289,11 +316,14 @@ export class FoodAnalyzerStack extends Stack {
         environment: {
           POWERTOOLS_SERVICE_NAME: "food-lens",
           POWERTOOLS_LOG_LEVEL: "DEBUG",
+          INGREDIENT_CACHE_TABLE_NAME: ingredientCacheTable.tableName,
         },
       }
     );
 
     this.getImageIngredients = recipeImageIngredientsFunction;
+
+    ingredientCacheTable.grantReadWriteData(recipeImageIngredientsFunction);
 
     recipeImageIngredientsFunction.addToRolePolicy(
       new iam.PolicyStatement({
@@ -335,12 +365,14 @@ export class FoodAnalyzerStack extends Stack {
           POWERTOOLS_SERVICE_NAME: "food-lens",
           POWERTOOLS_LOG_LEVEL: "DEBUG",
           S3_BUCKET_NAME: imgBucket.bucketName,
+          RECIPE_CACHE_TABLE_NAME: recipeCacheTable.tableName,
         },
       }
     );
     this.generateRecipe = recipeProposalsFunction;
 
     imgBucket.grantWrite(recipeProposalsFunction);
+    recipeCacheTable.grantReadWriteData(recipeProposalsFunction);
 
     recipeProposalsFunction.addToRolePolicy(
       new iam.PolicyStatement({

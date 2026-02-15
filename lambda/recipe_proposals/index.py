@@ -3,7 +3,9 @@ import boto3
 import base64
 import json
 import uuid
+import hashlib
 from botocore.exceptions import ClientError
+from decimal import Decimal
 import urllib.request
 import urllib.parse
 import urllib.error
@@ -19,11 +21,19 @@ from functools import partial
 
 bedrock_rt = boto3.client("bedrock-runtime")
 s3 = boto3.client('s3')
+dynamodb = boto3.resource('dynamodb')
 
 S3_BUCKET_NAME = os.environ['S3_BUCKET_NAME']
+RECIPE_CACHE_TABLE_NAME = os.environ.get('RECIPE_CACHE_TABLE_NAME')
 
 tracer = Tracer()
 logger = Logger()
+
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super(DecimalEncoder, self).default(obj)
 
 def call_bedrock_thread(prompt, model_id, accept, content_type):
     body=json.dumps({
@@ -65,6 +75,69 @@ def upload_image_to_s3(image_bytes):
         logger.debug("Uploaded image: {}".format(file_name))
 
     return list_url_s3
+
+def generate_cache_key(ingredients, allergies, preferences, health_goal, religion, disliked_ingredients, favorite_cuisines, language):
+    """Generate hash key for caching based on all input parameters"""
+    cache_data = {
+        "ingredients": sorted(ingredients) if ingredients else [],
+        "allergies": sorted(allergies) if allergies else [],
+        "preferences": sorted(preferences) if preferences else [],
+        "health_goal": health_goal or "",
+        "religion": religion or "",
+        "disliked_ingredients": sorted(disliked_ingredients) if disliked_ingredients else [],
+        "favorite_cuisines": sorted(favorite_cuisines) if favorite_cuisines else [],
+        "language": language
+    }
+    cache_string = json.dumps(cache_data, sort_keys=True)
+    
+    # Generate hashes
+    ingredients_hash = hashlib.md5(json.dumps(sorted(ingredients) if ingredients else []).encode()).hexdigest()
+    params_hash = hashlib.md5(cache_string.encode()).hexdigest()
+    
+    return ingredients_hash, params_hash
+
+def get_cached_recipes(ingredients_hash, params_hash):
+    """Retrieve cached recipes from DynamoDB"""
+    if not RECIPE_CACHE_TABLE_NAME:
+        return None
+    
+    try:
+        table = dynamodb.Table(RECIPE_CACHE_TABLE_NAME)
+        response = table.get_item(
+            Key={
+                'ingredients_hash': ingredients_hash,
+                'params_hash': params_hash
+            }
+        )
+        
+        if 'Item' in response:
+            logger.info("Cache hit for recipe generation")
+            return json.loads(response['Item']['recipes'], parse_float=Decimal)
+        else:
+            logger.info("Cache miss for recipe generation")
+            return None
+    except Exception as e:
+        logger.error(f"Error retrieving from cache: {e}")
+        return None
+
+def save_recipes_to_cache(ingredients_hash, params_hash, recipes):
+    """Save generated recipes to DynamoDB cache"""
+    if not RECIPE_CACHE_TABLE_NAME:
+        return
+    
+    try:
+        table = dynamodb.Table(RECIPE_CACHE_TABLE_NAME)
+        table.put_item(
+            Item={
+                'ingredients_hash': ingredients_hash,
+                'params_hash': params_hash,
+                'recipes': json.dumps(recipes, cls=DecimalEncoder),
+                'timestamp': int(time.time())
+            }
+        )
+        logger.info("Recipes saved to cache")
+    except Exception as e:
+        logger.error(f"Error saving to cache: {e}")
 
 def generate_images_recipes(prompt_list:list):
     """
@@ -150,6 +223,26 @@ def handler(event, context):
     favorite_cuisines = json_body.get("favoriteCuisines", [])
     recipe_context = json_body.get("recipeContext", {})
     
+    # Generate cache keys
+    ingredients_hash, params_hash = generate_cache_key(
+        ingredients, allergies, preferences, health_goal, 
+        religion, disliked_ingredients, favorite_cuisines, language
+    )
+    
+    # Check cache first
+    cached_recipes = get_cached_recipes(ingredients_hash, params_hash)
+    if cached_recipes:
+        logger.info("Returning cached recipes")
+        return {
+            'statusCode': 200,
+            'body': json.dumps({'recipes': cached_recipes}, cls=DecimalEncoder),
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            }
+        }
+    
+    logger.info("Cache miss - generating new recipes")
     
     model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
     claude_config = {
@@ -250,11 +343,11 @@ def handler(event, context):
     # Upload images to S3
     list_url_s3=upload_image_to_s3(image_data)
     for i,recipee in enumerate(response['recipes']):
-        recipee['recipee_id']=f"{uuid.uuid4()}"
+        recipee['recipe_id']=f"{uuid.uuid4()}"
         recipee['image_url']=f"/{list_url_s3[i]}"
     
-
-
+    # Save to cache
+    save_recipes_to_cache(ingredients_hash, params_hash, response['recipes'])
 
     # Return JSON response
     return {

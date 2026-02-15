@@ -1,0 +1,162 @@
+[WARNING] aws-cdk-lib.aws_cloudfront_origins.S3Origin is deprecated.
+  Use `S3BucketOrigin` or `S3StaticWebsiteOrigin` instead.
+  This API will be removed in the next major release.
+[WARNING] aws-cdk-lib.aws_cloudfront_origins.S3Origin is deprecated.
+  Use `S3BucketOrigin` or `S3StaticWebsiteOrigin` instead.
+  This API will be removed in the next major release.
+[WARNING] aws-cdk-lib.aws_cloudfront_origins.S3Origin#bind is deprecated.
+  Use `S3BucketOrigin` or `S3StaticWebsiteOrigin` instead.
+  This API will be removed in the next major release.
+[WARNING] aws-cdk-lib.aws_cloudfront_origins.S3Origin#bind is deprecated.
+  Use `S3BucketOrigin` or `S3StaticWebsiteOrigin` instead.
+  This API will be removed in the next major release.
+[WARNING] aws-cdk-lib.aws_cognito.UserPoolProps#advancedSecurityMode is deprecated.
+  Advanced Security Mode is deprecated due to user pool feature plans. Use StandardThreatProtectionMode and CustomThreatProtectionMode to set Thread Protection level.
+  This API will be removed in the next major release.
+[WARNING] aws-cdk-lib.aws_cognito.AdvancedSecurityMode is deprecated.
+  Advanced Security Mode is deprecated due to user pool feature plans. Use StandardThreatProtectionMode and CustomThreatProtectionMode to set Thread Protection level.
+  This API will be removed in the next major release.
+[WARNING] aws-cdk-lib.aws_cognito.AdvancedSecurityMode#ENFORCED is deprecated.
+  
+  This API will be removed in the next major release.
+[WARNING] aws-cdk-lib.aws_lambda.FunctionOptions#logRetention is deprecated.
+  use `logGroup` instead
+  This API will be removed in the next major release.
+[WARNING] aws-cdk-lib.aws_lambda.FunctionOptions#logRetention is deprecated.
+  use `logGroup` instead
+  This API will be removed in the next major release.
+[WARNING] aws-cdk-lib.aws_lambda.FunctionOptions#logRetention is deprecated.
+  use `logGroup` instead
+  This API will be removed in the next major release.
+Bundling asset FoodAnalyzer/GetProductSummaryLambda/Code/Stage...
+
+  ...118f0b51d042cedc87550fee8e3267a382e1758c27d233-building/index.js  1.1mb ⚠️
+
+⚡ Done in 176ms
+Bundling asset FoodAnalyzer/recipeStepByStepFunction/Code/Stage...
+
+  ...0c929e0b1e43df097ed378c4a9cd8df41aa74a0db4035d-building/index.js  387.2kb
+
+⚡ Done in 46ms
+Bundling asset FoodAnalyzer/DeployWebsite/Asset1/Stage...
+[36mvite v7.1.11 [32mbuilding for production...[36m[39m
+transforming...
+[32m✓[39m 2909 modules transformed.
+[33m
+[1m(!)[22m outDir [37m[2m/Users/jeremlab/workspace/tmp/serverless-genai-food-analyzer-app/resources/ui/dist[22m[33m is not inside project root and will not be emptied.
+Use --emptyOutDir to override.
+[39m
+rendering chunks...
+computing gzip size...
+[2m../../dist/[22m[32mindex.html                [39m[1m[2m    0.44 kB[22m[1m[22m[2m │ gzip:   0.29 kB[22m
+[2m../../dist/[22m[2massets/[22m[35mhome-CHy52FU9.css  [39m[1m[2m  914.40 kB[22m[1m[22m[2m │ gzip: 214.01 kB[22m
+[2m../../dist/[22m[2massets/[22m[36mhome-CUUjAg5h.js   [39m[1m[33m1,525.09 kB[39m[22m[2m │ gzip: 438.97 kB[22m[2m │ map: 6,704.33 kB[22m
+[33m
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+[32m✓ built in 4.30s[39m
+Performing Policy Validations
+
+Validation Report
+-----------------
+
+Policy Validation Report Summary
+
+╔════════════════════════╤═════════╗
+║ Plugin                 │ Status  ║
+╟────────────────────────┼─────────╢
+║ cdk-validator-cfnguard │ success ║
+╚════════════════════════╧═════════╝
+
+Policy Validation Successful!
+
+✨  Synthesis time: 48.13s
+
+FoodAnalyzer: start: Building GetImageIngredients/Code
+FoodAnalyzer: success: Built GetImageIngredients/Code
+FoodAnalyzer: start: Building GenerateRecipe/Code
+FoodAnalyzer: success: Built GenerateRecipe/Code
+FoodAnalyzer: start: Building DeployWebsite/Asset1
+FoodAnalyzer: success: Built DeployWebsite/Asset1
+FoodAnalyzer: start: Building FoodAnalyzer Template
+FoodAnalyzer: success: Built FoodAnalyzer Template
+FoodAnalyzer: start: Publishing GetImageIngredients/Code (359579025859-us-east-1-e8d1519d)
+FoodAnalyzer: start: Publishing FoodAnalyzer Template (359579025859-us-east-1-2594e9e1)
+FoodAnalyzer: start: Publishing DeployWebsite/Asset1 (359579025859-us-east-1-f693576f)
+FoodAnalyzer: start: Publishing GenerateRecipe/Code (359579025859-us-east-1-c2b2629a)
+FoodAnalyzer: success: Published GetImageIngredients/Code (359579025859-us-east-1-e8d1519d)
+FoodAnalyzer: success: Published GenerateRecipe/Code (359579025859-us-east-1-c2b2629a)
+FoodAnalyzer: success: Published FoodAnalyzer Template (359579025859-us-east-1-2594e9e1)
+FoodAnalyzer: success: Published DeployWebsite/Asset1 (359579025859-us-east-1-f693576f)
+FoodAnalyzer: deploying... [1/1]
+FoodAnalyzer: creating CloudFormation changeset...
+FoodAnalyzer |  0/13 | 9:57:17 AM | UPDATE_IN_PROGRESS   | AWS::CloudFormation::Stack                      | FoodAnalyzer User Initiated
+FoodAnalyzer |  0/13 | 9:57:22 AM | CREATE_IN_PROGRESS   | AWS::DynamoDB::Table                            | IngredientCacheTable (IngredientCacheTable100EDAE0) 
+FoodAnalyzer |  0/13 | 9:57:22 AM | CREATE_IN_PROGRESS   | AWS::DynamoDB::Table                            | RecipeCacheTable (RecipeCacheTable1F5A6059) 
+FoodAnalyzer |  0/13 | 9:57:22 AM | UPDATE_IN_PROGRESS   | AWS::CDK::Metadata                              | CDKMetadata/Default (CDKMetadata) 
+FoodAnalyzer |  1/13 | 9:57:23 AM | UPDATE_COMPLETE      | AWS::CDK::Metadata                              | CDKMetadata/Default (CDKMetadata) 
+FoodAnalyzer |  1/13 | 9:57:23 AM | CREATE_IN_PROGRESS   | AWS::DynamoDB::Table                            | IngredientCacheTable (IngredientCacheTable100EDAE0) Resource creation Initiated
+FoodAnalyzer |  1/13 | 9:57:23 AM | CREATE_IN_PROGRESS   | AWS::DynamoDB::Table                            | RecipeCacheTable (RecipeCacheTable1F5A6059) Resource creation Initiated
+FoodAnalyzer |  2/13 | 9:57:36 AM | CREATE_COMPLETE      | AWS::DynamoDB::Table                            | IngredientCacheTable (IngredientCacheTable100EDAE0) 
+FoodAnalyzer |  3/13 | 9:57:36 AM | CREATE_COMPLETE      | AWS::DynamoDB::Table                            | RecipeCacheTable (RecipeCacheTable1F5A6059) 
+FoodAnalyzer |  3/13 | 9:57:40 AM | UPDATE_IN_PROGRESS   | AWS::IAM::Policy                                | LambdaRole/DefaultPolicy (LambdaRoleDefaultPolicy75625A82) 
+FoodAnalyzer |  4/13 | 9:57:56 AM | UPDATE_COMPLETE      | AWS::IAM::Policy                                | LambdaRole/DefaultPolicy (LambdaRoleDefaultPolicy75625A82) 
+FoodAnalyzer |  4/13 | 9:57:58 AM | UPDATE_IN_PROGRESS   | AWS::Lambda::Function                           | GetImageIngredients (GetImageIngredientsDB6B31FF) 
+FoodAnalyzer |  4/13 | 9:57:58 AM | UPDATE_IN_PROGRESS   | AWS::Lambda::Function                           | GenerateRecipe (GenerateRecipe23F9968B) 
+FoodAnalyzer |  5/13 | 9:58:12 AM | UPDATE_COMPLETE      | AWS::Lambda::Function                           | GenerateRecipe (GenerateRecipe23F9968B) 
+FoodAnalyzer |  6/13 | 9:58:12 AM | UPDATE_COMPLETE      | AWS::Lambda::Function                           | GetImageIngredients (GetImageIngredientsDB6B31FF) 
+FoodAnalyzer |  6/13 | 9:58:14 AM | UPDATE_IN_PROGRESS   | Custom::CDKBucketDeployment                     | DeployWebsite/CustomResource-512MiB/Default (DeployWebsiteCustomResource512MiB97D66348) 
+FoodAnalyzer |  7/13 | 9:59:05 AM | UPDATE_COMPLETE      | Custom::CDKBucketDeployment                     | DeployWebsite/CustomResource-512MiB/Default (DeployWebsiteCustomResource512MiB97D66348) 
+FoodAnalyzer |  8/13 | 9:59:07 AM | UPDATE_COMPLETE_CLEA | AWS::CloudFormation::Stack                      | FoodAnalyzer 
+FoodAnalyzer |  9/13 | 9:59:08 AM | UPDATE_COMPLETE      | AWS::CloudFormation::Stack                      | FoodAnalyzer 
+
+ ✅  FoodAnalyzer
+
+✨  Deployment time: 143.49s
+
+Outputs:
+FoodAnalyzer.AuthenticationUserPool374E07F6 = us-east-1_wLqpZJIjB
+FoodAnalyzer.domainName = d262q0erqq4wd1.cloudfront.net
+FoodAnalyzer.openFoodFactsProductsTableNameOutput = FoodAnalyzer-allProductsOpenFoodFactsTable431D3B7B-K5LGYCRK50AG
+Stack ARN:
+arn:aws:cloudformation:us-east-1:359579025859:stack/FoodAnalyzer/ce653210-0078-11f1-a06f-0affcd1facd1
+
+✨  Total time: 191.62s
+
+
+NOTICES         (What's this? https://github.com/aws/aws-cdk/wiki/CLI-Notices)
+
+34892	CDK CLI will collect telemetry data on command usage starting at version 2.1100.0 (unless opted out)
+
+	Overview: We do not collect customer content and we anonymize the
+	          telemetry we do collect. See the attached issue for more
+	          information on what data is collected, why, and how to
+	          opt-out. Telemetry will NOT be collected for any CDK CLI
+	          version prior to version 2.1100.0 - regardless of
+	          opt-in/out. You can also preview the telemetry we will start
+	          collecting by logging it to a local file, by adding
+	          `--unstable=telemetry --telemetry-file=my/local/file` to any
+	          `cdk` command.
+
+	Affected versions: cli: >=2.0.0 <2.1100.0
+
+	More information at: https://github.com/aws/aws-cdk/issues/34892
+
+
+27483	cognito-identitypool-alpha: Stabilizing to GA soon.
+
+	Overview: The AWS CDK team is preparing to graduate the Cognito
+	          Identity Pools module from Developer Preview to General
+	          Availability (GA). To ensure uninterrupted functionality of
+	          your applications during this transition, we strongly
+	          recommend upgrading to the latest version of AWS CDK before
+	          this change takes effect.
+
+	Affected versions: @aws-cdk/aws-cognito-identitypool-alpha.IdentityPool: >=2.74.0-alpha.0 <2.179.0-alpha.0
+
+	More information at: https://github.com/aws/aws-cdk/issues/27483
+
+
+If you don’t want to see a notice anymore, use "cdk acknowledge <id>". For example, "cdk acknowledge 34892".

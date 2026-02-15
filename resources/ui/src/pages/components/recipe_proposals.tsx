@@ -11,6 +11,7 @@ import ReactMarkdown from "react-markdown";
 import { getMockPrice } from "../../utils/ingredient-mapping";
 import { LeftoverSuggestion } from "./leftover-suggestion";
 import { CartSuccessModal } from "./cart-success-modal";
+import { getRandomFunFact } from "../../utils/fun-facts";
 
 interface RecipeProposalProps {
   language: string;
@@ -50,6 +51,7 @@ const RecipeProposal: React.FC<RecipeProposalProps> = ({
   const [completedRecipe, setCompletedRecipe] = useState<any>(null);
   const [showCartSuccess, setShowCartSuccess] = useState(false);
   const [cartSuccessData, setCartSuccessData] = useState<any>(null);
+  const [funFact, setFunFact] = useState("");
 
   // Animate loading steps for recipe generation
   useEffect(() => {
@@ -62,9 +64,13 @@ const RecipeProposal: React.FC<RecipeProposalProps> = ({
           currentStep++;
         }
       }, 1000);
+      
+      // Set random fun fact based on ingredients
+      setFunFact(getRandomFunFact(ingredients));
+      
       return () => clearInterval(interval);
     }
-  }, [loadingRecipePropositions]);
+  }, [loadingRecipePropositions, ingredients]);
 
   // Make a new API call using the result from the first API call
   const fetchStepsRecipe = async (item: any, index: number) => {
@@ -215,13 +221,24 @@ const RecipeProposal: React.FC<RecipeProposalProps> = ({
             </SpaceBetween>
           </div>
 
+          {/* Fun Fact */}
           <div style={{
-            textAlign: "center",
-            color: "#666",
-            fontSize: "0.85rem",
-            fontStyle: "italic",
+            background: "#FFF9E6",
+            borderRadius: "12px",
+            padding: "16px",
+            border: "1px solid #FFE082",
           }}>
-            💡 This usually takes 5-8 seconds
+            <h4 style={{ fontSize: "0.9rem", margin: "0 0 8px 0", color: "#F57C00", fontWeight: "600" }}>
+              💡 Did you know?
+            </h4>
+            <p style={{
+              color: "#666",
+              fontSize: "0.85rem",
+              margin: 0,
+              lineHeight: "1.5",
+            }}>
+              {funFact}
+            </p>
           </div>
         </div>
       )}

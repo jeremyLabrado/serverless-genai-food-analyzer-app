@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Button, SpaceBetween, Badge } from "@cloudscape-design/components";
+import { useNavigate } from "react-router-dom";
 import { getMockPrice } from "../../utils/ingredient-mapping";
 
 interface LeftoverSuggestionProps {
@@ -13,6 +14,7 @@ export const LeftoverSuggestion: React.FC<LeftoverSuggestionProps> = ({
   language,
   onDismiss,
 }) => {
+  const navigate = useNavigate();
   const [rating, setRating] = useState(0);
   const currencySymbol = ['french', 'spanish', 'italian'].includes(language) ? '€' : '$';
 
@@ -90,8 +92,10 @@ export const LeftoverSuggestion: React.FC<LeftoverSuggestionProps> = ({
                 if (!favorites.find((f: any) => f.recipe_id === recipe.recipe_id)) {
                   favorites.push(recipe);
                   localStorage.setItem("favoriteRecipes", JSON.stringify(favorites));
+                  alert("✅ Recipe saved to favorites!");
+                } else {
+                  alert("ℹ️ Recipe already in favorites");
                 }
-                onDismiss();
               }}
             >
               ⭐ Save to Favorites
@@ -181,8 +185,8 @@ export const LeftoverSuggestion: React.FC<LeftoverSuggestionProps> = ({
                       });
                     });
                     localStorage.setItem("shoppingCart", JSON.stringify(cart));
-                    alert(`✅ Added ${leftoverRecipe.new_ingredients.length} items to cart!`);
                     onDismiss();
+                    navigate("/cart");
                   }}
                 >
                   🛒 Add to Cart
@@ -197,8 +201,7 @@ export const LeftoverSuggestion: React.FC<LeftoverSuggestionProps> = ({
                       savedAt: new Date().toISOString(),
                     });
                     localStorage.setItem("favoriteRecipes", JSON.stringify(favorites));
-                    alert("✅ Saved for later!");
-                    onDismiss();
+                    alert(`✅ ${leftoverRecipe.recipe_title} saved to favorites! Quick reorder anytime from your Favorites page.`);
                   }}
                 >
                   💾 Save
@@ -208,7 +211,7 @@ export const LeftoverSuggestion: React.FC<LeftoverSuggestionProps> = ({
                 variant="link"
                 onClick={onDismiss}
               >
-                ✕ Dismiss
+                ✕ Close
               </Button>
             </SpaceBetween>
           </div>

@@ -38,7 +38,7 @@ const TopNav = ({
         // Cart button (not on home page)
         ...(!isHomePage ? [{
           type: "button" as const,
-          text: cartCount > 0 ? `🛒 ${cartCount}` : "🛒",
+          text: cartCount > 0 ? `🛒${cartCount}` : "🛒",
           title: "Shopping Cart",
           ariaLabel: "Shopping Cart",
           onClick: () => navigate("/cart"),
@@ -46,7 +46,7 @@ const TopNav = ({
         // Preferences button (not on home page)
         ...(!isHomePage ? [{
           type: "button" as const,
-          text: "⚙️",
+          text: "⚙",
           title: "Preferences",
           ariaLabel: "Preferences",
           onClick: () => navigate("/preference"),
