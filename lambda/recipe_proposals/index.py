@@ -132,7 +132,8 @@ def save_recipes_to_cache(ingredients_hash, params_hash, recipes):
                 'ingredients_hash': ingredients_hash,
                 'params_hash': params_hash,
                 'recipes': json.dumps(recipes, cls=DecimalEncoder),
-                'timestamp': int(time.time())
+                'timestamp': int(time.time()),
+                'ttl': int(time.time()) + 86400 * 30  # 30 days
             }
         )
         logger.info("Recipes saved to cache")

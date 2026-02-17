@@ -64,7 +64,8 @@ def save_ingredients_to_cache(image_hash, ingredients):
             Item={
                 'image_hash': image_hash,
                 'ingredients': json.dumps(ingredients, cls=DecimalEncoder),
-                'timestamp': int(time.time())
+                'timestamp': int(time.time()),
+                'ttl': int(time.time()) + 86400 * 30  # 30 days
             }
         )
         logger.info(f"Ingredients saved to cache: {image_hash}")

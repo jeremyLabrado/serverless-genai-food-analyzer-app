@@ -481,9 +481,11 @@ tracing: lambda.Tracing.ACTIVE
 ### Current Configuration
 
 **Lambda**:
-- Memory: 10GB (high for demo purposes)
-- Timeout: 5 minutes
+- Memory: 10GB (optimized for demo reliability)
+- Timeout: 5 minutes (ensures completion under any load)
 - Estimated cost: $0.50-1.00 per 1000 invocations
+
+**Rationale**: High memory allocation ensures consistent performance during high-traffic demo environments (AWS Summit, trade shows) where reliability is more critical than cost optimization.
 
 **Bedrock**:
 - Claude 3 Sonnet: $3/1M input tokens, $15/1M output tokens
@@ -495,11 +497,13 @@ tracing: lambda.Tracing.ACTIVE
 
 ### Production Recommendations
 
-1. **Right-size Lambda memory**: 10GB → 2-4GB (60-80% cost reduction)
-2. **Enable CloudFront caching**: Reduce Lambda invocations by 50%
-3. **Implement Bedrock Prompt Caching**: 90% cost reduction on repeated context
-4. **Add DynamoDB TTL**: Expire old cache entries
-5. **Use Lambda reserved concurrency**: For predictable workloads
+**For Post-Demo Production Deployment**:
+1. Enable CloudFront caching ✅ (Already enabled)
+2. Implement Bedrock Prompt Caching: 90% cost reduction on repeated context
+3. Add DynamoDB TTL ✅ (Already enabled): Expire old cache entries
+4. Consider Lambda memory optimization: 10GB → 2-4GB (only after demo, for cost reduction)
+
+**Note**: Current 10GB Lambda configuration is intentional for demo reliability. Cost optimization can be applied post-Summit for production deployments.
 
 ## Integration Architecture
 
