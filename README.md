@@ -415,6 +415,26 @@ localStorage.setItem("favoriteRecipes", JSON.stringify(favorites));
 - **Node.js 24.x** - TypeScript Lambda functions (upgraded Dec 2025)
 - **Python 3.14** - Python Lambda functions
 
+## Documentation
+
+### Technical Documentation
+For detailed technical information, see the [docs/](docs/) directory:
+- [Codebase Overview](docs/codebase_info.md) - Project statistics and complexity analysis
+- [Architecture Details](docs/architecture.md) - System design and data flow
+- [Component Reference](docs/components.md) - All 7 Lambda functions and 8 frontend pages
+- [API Specifications](docs/interfaces.md) - Complete API documentation
+- [Data Models](docs/data_models.md) - Data structures and schemas
+- [Workflows](docs/workflows.md) - Process flows and user journeys
+- [Dependencies](docs/dependencies.md) - External dependencies and versions
+- [Documentation Index](docs/index.md) - Navigation guide
+
+### Operational Documentation
+- [ARCHITECTURE.md](ARCHITECTURE.md) - High-level architecture overview
+- [RUNBOOKS.md](RUNBOOKS.md) - 10 incident response procedures
+- [WELL_ARCHITECTED_REVIEW.md](WELL_ARCHITECTED_REVIEW.md) - AWS framework assessment (8.7/10)
+- [AWS Summit Demo Ticket](AWS_SUMMIT_DEMO_TICKET.md) - Summit submission document
+- [Demo Review Checklist](demo-review-checklist.md) - Security compliance checklist
+
 ## Awards & Recognition
 
 - 🏆 **Winner**: AWS Hackathon France 2024
