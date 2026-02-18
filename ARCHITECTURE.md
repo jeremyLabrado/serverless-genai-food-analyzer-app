@@ -56,7 +56,7 @@ User → Cognito (JWT) → Lambda@Edge (validate + sign) → Lambda URL (IAM aut
 
 **barcode_ingredients** (Python 3.14)
 - Fetches product data from Open Food Facts API
-- Generates ingredient descriptions using Claude 3 Sonnet
+- Generates ingredient descriptions using Claude Haiku 4.5
 - Stores processed data in DynamoDB
 - Caches results for performance
 
@@ -75,7 +75,7 @@ User → Cognito (JWT) → Lambda@Edge (validate + sign) → Lambda URL (IAM aut
 #### Recipe Generation Services
 
 **recipe_image_ingredients** (Python 3.14)
-- Analyzes fridge photos using Claude 3 Sonnet (vision)
+- Analyzes fridge photos using Claude Haiku 4.5 (vision)
 - Extracts ingredient list
 - Returns structured JSON response
 
@@ -158,7 +158,7 @@ User → Cognito (JWT) → Lambda@Edge (validate + sign) → Lambda URL (IAM aut
    ↓
 4. If not cached:
    - Fetch from Open Food Facts API
-   - Generate ingredient descriptions (Claude 3 Sonnet)
+   - Generate ingredient descriptions (Claude Haiku 4.5)
    - Store in DynamoDB
    ↓
 5. Return product data to frontend
@@ -186,13 +186,13 @@ User → Cognito (JWT) → Lambda@Edge (validate + sign) → Lambda URL (IAM aut
    ↓
 2. Frontend → CloudFront → Lambda@Edge (auth) → recipe_image_ingredients
    ↓
-3. Lambda analyzes images (Claude 3 Sonnet vision)
+3. Lambda analyzes images (Claude Haiku 4.5 vision)
    ↓
 4. Return ingredient list: ["chicken", "tomatoes", "onions"]
    ↓
 5. Frontend → recipe_proposals
    ↓
-6. Lambda generates 3 recipes (Claude 3 Sonnet)
+6. Lambda generates 3 recipes (Claude Haiku 4.5)
    - Applies all 6 user preferences
    - Parallel image generation (Nova Canvas)
    - Stores images in S3
@@ -488,7 +488,7 @@ tracing: lambda.Tracing.ACTIVE
 **Rationale**: High memory allocation ensures consistent performance during high-traffic demo environments (AWS Summit, trade shows) where reliability is more critical than cost optimization.
 
 **Bedrock**:
-- Claude 3 Sonnet: $3/1M input tokens, $15/1M output tokens
+- Claude Haiku 4.5: $3/1M input tokens, $15/1M output tokens
 - Claude 3 Haiku: $0.25/1M input tokens, $1.25/1M output tokens
 - Nova Canvas: $0.04 per image
 

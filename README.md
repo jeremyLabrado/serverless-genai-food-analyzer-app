@@ -214,7 +214,7 @@ Every recipe and product analysis respects ALL user preferences:
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
 │ RECIPE GENERATION                                           │
-│ Lambda → Bedrock (Claude 3 Sonnet + Nova Canvas)           │
+│ Lambda → Bedrock (Claude Haiku 4.5 + Nova Canvas)           │
 └─────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────┐
@@ -234,7 +234,7 @@ Every recipe and product analysis respects ALL user preferences:
 
 | Service | Purpose |
 |---------|---------|
-| **Amazon Bedrock** | Claude Sonnet (vision, recipes), Claude Haiku (streaming), Nova Canvas (images) |
+| **Amazon Bedrock** | Claude Haiku 4.5 (vision, recipes), Claude Haiku (streaming), Nova Canvas (images) |
 | **AWS Lambda** | 6 serverless functions (Python 3.14, Node.js 24.x) |
 | **Lambda@Edge** | Cognito JWT validation + SigV4 request signing |
 | **Amazon DynamoDB** | Product catalog, recipe cache, personalized summaries |
@@ -248,11 +248,11 @@ Every recipe and product analysis respects ALL user preferences:
 
 | Function | Runtime | Purpose | Bedrock Model |
 |----------|---------|---------|---------------|
-| `barcode_ingredients` | Python 3.14 | Fetch product data, generate ingredient descriptions | Claude 3 Sonnet |
+| `barcode_ingredients` | Python 3.14 | Fetch product data, generate ingredient descriptions | Claude Haiku 4.5 |
 | `barcode_product_summary` | Node.js 24.x | Generate personalized product summaries (streaming) | Claude 3 Haiku |
 | `barcode_image` | Python 3.14 | Generate product visualizations | Nova Canvas |
-| `recipe_image_ingredients` | Python 3.14 | Extract ingredients from fridge photos | Claude 3 Sonnet (vision) |
-| `recipe_proposals` | Python 3.14 | Generate 3 personalized recipes with images | Claude 3 Sonnet + Nova Canvas |
+| `recipe_image_ingredients` | Python 3.14 | Extract ingredients from fridge photos | Claude Haiku 4.5 (vision) |
+| `recipe_proposals` | Python 3.14 | Generate 3 personalized recipes with images | Claude Haiku 4.5 + Nova Canvas |
 | `recipe_step_by_step` | Node.js 24.x | Stream cooking instructions | Claude 3 Haiku |
 | `auth` (Edge) | Node.js 24.x | JWT validation + SigV4 signing | N/A |
 
@@ -282,8 +282,8 @@ authType: lambda.FunctionUrlAuthType.AWS_IAM
 |----------|-------|-----------|
 | Barcode product summary | Claude Haiku | Fast streaming, cost-effective |
 | Barcode product image | Nova Canvas | Cost-effective, high quality |
-| Fridge photo analysis | Claude Sonnet | Vision capability, high accuracy |
-| Recipe generation | Claude Sonnet | Complex reasoning, JSON output |
+| Fridge photo analysis | Claude Haiku 4.5 | Vision capability, high accuracy |
+| Recipe generation | Claude Haiku 4.5 | Complex reasoning, JSON output |
 | Cooking instructions | Claude Haiku | Fast streaming, good UX |
 | Recipe images | Nova Canvas | Cost-effective, appetizing results |
 

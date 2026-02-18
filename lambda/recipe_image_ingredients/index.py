@@ -160,7 +160,7 @@ def handler(event, context):
     
     logger.info("Cache miss - detecting ingredients from images")
     
-    model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
+    model_id = "anthropic.claude-haiku-4-5-20251001-v1:0"
     claude_config = {
         'max_tokens': 2000, 
         'temperature': 0, 
