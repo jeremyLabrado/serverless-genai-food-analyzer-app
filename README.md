@@ -429,11 +429,9 @@ For detailed technical information, see the [docs/](docs/) directory:
 - [Documentation Index](docs/index.md) - Navigation guide
 
 ### Operational Documentation
-- [ARCHITECTURE.md](ARCHITECTURE.md) - High-level architecture overview
 - [RUNBOOKS.md](RUNBOOKS.md) - 10 incident response procedures
-- [WELL_ARCHITECTED_REVIEW.md](WELL_ARCHITECTED_REVIEW.md) - AWS framework assessment (8.7/10)
+- [Well-Architected Review](docs/WELL_ARCHITECTED_REVIEW.md) - AWS framework assessment (8.7/10)
 - [AWS Summit Demo Ticket](AWS_SUMMIT_DEMO_TICKET.md) - Summit submission document
-- [Demo Review Checklist](demo-review-checklist.md) - Security compliance checklist
 
 ## Awards & Recognition
 
