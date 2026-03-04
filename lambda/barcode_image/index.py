@@ -239,7 +239,6 @@ def call_bedrock(prompt_text):
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": 10000,
         "temperature": 0.5,
-        "top_p": 0.9,
         "messages": [
             {
                 "role": "user",
@@ -255,7 +254,7 @@ def call_bedrock(prompt_text):
 
     body = json.dumps(prompt_config)
 
-    modelId = "anthropic.claude-3-haiku-20240307-v1:0"
+    modelId = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 
     response = get_bedrock_text_reponse(
             query_bedrock(payload=body, model_id=modelId)

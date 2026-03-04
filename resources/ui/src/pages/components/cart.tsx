@@ -98,9 +98,7 @@ export function Cart() {
             boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
           }}>
             <div style={{ fontSize: "3rem", marginBottom: "16px" }}>🛒</div>
-{/* nosemgrep: jsx-not-internationalized */}
             <h3 style={{ color: "#666", marginBottom: "12px" }}>Your cart is empty</h3>
-{/* nosemgrep: jsx-not-internationalized */}
             <p style={{ color: "#999", marginBottom: "20px" }}>
               Generate recipes and add missing ingredients
             </p>
@@ -119,7 +117,6 @@ export function Cart() {
                 boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
                 border: "1px solid #e0e0e0",
               }}>
-{/* nosemgrep: jsx-not-internationalized */}
                 <h4 style={{ fontSize: "1rem", color: "#666", marginBottom: "16px" }}>
                   For: {recipeTitle}
                 </h4>
@@ -181,12 +178,10 @@ export function Cart() {
             }}>
               <SpaceBetween size="s">
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.95rem" }}>
-{/* nosemgrep: jsx-not-internationalized */}
                   <span>Subtotal:</span>
                   <span>{currencySymbol}{subtotal.toFixed(2)}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.95rem" }}>
-{/* nosemgrep: jsx-not-internationalized */}
                   <span>Tax (est.):</span>
                   <span>{currencySymbol}{tax.toFixed(2)}</span>
                 </div>
@@ -198,7 +193,6 @@ export function Cart() {
                   paddingTop: "12px",
                   borderTop: "2px solid #e0e0e0",
                 }}>
-{/* nosemgrep: jsx-not-internationalized */}
                   <span>Total:</span>
                   <span style={{ color: "#00C853" }}>{currencySymbol}{total.toFixed(2)}</span>
                 </div>
@@ -207,11 +201,9 @@ export function Cart() {
 
             {/* Actions */}
             <div style={{ display: "flex", gap: "12px" }}>
-{/* nosemgrep: jsx-not-internationalized */}
               <Button variant="normal" onClick={() => navigate("/recipe")}>
                 Continue Shopping
               </Button>
-{/* nosemgrep: jsx-not-internationalized */}
               <Button
                 variant="primary"
                 onClick={() => {
