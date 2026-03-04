@@ -11,7 +11,7 @@ const dynamodb = new DynamoDBClient({});
 
 const PRODUCT_TABLE_NAME = process.env.PRODUCT_TABLE_NAME
 const PRODUCT_SUMMARY_TABLE_NAME = process.env.PRODUCT_SUMMARY_TABLE_NAME
-const MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
+const MODEL_ID = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 
 
 
@@ -153,11 +153,13 @@ function generateProductSummaryPrompt(
     IMPORTANT: Only mention allergens, dietary preferences, health goals, or religious requirements if the user has specified them. Do not discuss aspects the user hasn't set.`;
     
     let userContext = '';
+    // nosemgrep: html-in-template-string -- These are XML-like tags in an LLM prompt sent to Bedrock, not browser HTML
     if (userAllergies) userContext += `\n<user_allergies>${userAllergies}</user_allergies>`;
     if (userHealthGoal) userContext += `\n<user_health_goal>${userHealthGoal}</user_health_goal>`;
     if (userPreference) userContext += `\n<user_dietary_preferences>${userPreference}</user_dietary_preferences>`;
     if (userReligion) userContext += `\n<user_religious_requirement>${userReligion}</user_religious_requirement>`;
     
+    // nosemgrep: html-in-template-string -- LLM prompt template with XML-like tags, not rendered HTML
     return `Human:
           ${instructions}
   

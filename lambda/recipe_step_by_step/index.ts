@@ -17,7 +17,7 @@ declare global {
 }
 
 
-const MODEL_ID = "anthropic.claude-3-haiku-20240307-v1:0"
+const MODEL_ID = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 
 const tracer = new Tracer();
 const logger = new Logger();

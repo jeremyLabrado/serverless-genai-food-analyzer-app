@@ -7,7 +7,7 @@ import requests
 import json
 import os
 import re
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 from aws_lambda_powertools import Logger, Tracer
 from typing import Dict, List, Optional, Tuple, Union, Any
 import re
@@ -168,7 +168,7 @@ def call_claude_haiku(prompt_text):
 
     body = json.dumps(prompt_config)
 
-    modelId = "anthropic.claude-3-haiku-20240307-v1:0"
+    modelId = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
     accept = "application/json"
     contentType = "application/json"
 
@@ -446,11 +446,11 @@ def write_product_to_db(product_code, language, product_name, ingredients, addit
             logger.debug("Product written successfully to Product Table")
 
         else:
-            logger.debug("Product written successfully to Product Table")
+            logger.warning("Product write returned non-200 status: %s", response['ResponseMetadata']['HTTPStatusCode'])
 
     except Exception as e:
         logger.error("Error while saving the Product into database", e)
-        raise Exception("Error while saving the Product into database")
+        raise
 
 
 

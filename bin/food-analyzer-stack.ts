@@ -3,6 +3,8 @@ import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
 import { FoodAnalyzerStack} from '../lib/food-analyzer-stack';
 import { CfnGuardValidator } from '@cdklabs/cdk-validator-cfnguard';
+import { Aspects } from 'aws-cdk-lib';
+import { AwsSolutionsChecks } from 'cdk-nag';
 
 const deploymentStage = process.env.STAGE || "dev"
 
@@ -27,7 +29,14 @@ const app = new cdk.App({
         'ct-s3-pr-2',  /* No need for server access logging, hosting buckets, demo purposes only*/
         'ct-s3-pr-11',  /* No need for versioning, hosting buckets, demo purposes only*/
         'ct-cloudwatch-pr-3', /* no need to encrypted logs, sample code here */
-        'ct-cloudwatch-pr-2' /* no need to retain logs for one year, sample code here */
+        'ct-cloudwatch-pr-2', /* no need to retain logs for one year, sample code here */
+        'cloud_trail_encryption_enabled_check', /* Demo app, CloudTrail encryption not required */
+        'cloud_trail_cloud_watch_logs_enabled_check', /* Demo app, CloudTrail CW logs not required */
+        'ct-cloudtrail-pr-1', /* Demo app, CloudTrail KMS encryption not required */
+        'ct-cloudtrail-pr-3', /* Demo app, CloudTrail CloudWatch logs not required */
+        'ct-cloudtrail-pr-4', /* Demo app, CloudTrail CloudWatch logs not required */
+        'kms_create_grant_aws_service_check', /* KMS grant created by CDK for CodeBuild encryption key */
+        'ct-kms-pr-3', /* KMS grant created by CDK for CodeBuild encryption key */
       ]
     })
   ],
@@ -45,5 +54,7 @@ const foodAnalyzer = new FoodAnalyzerStack(app, `FoodAnalyzer`,  deploymentStage
 
 cdk.Tags.of(foodAnalyzer).add("project", "foodAnalyzer");
 cdk.Tags.of(foodAnalyzer).add("stage", deploymentStage);
+
+Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
 
 

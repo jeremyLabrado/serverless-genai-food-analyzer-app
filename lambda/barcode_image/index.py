@@ -240,9 +240,23 @@ def call_bedrock(prompt_text):
     model_kwargs_text = {
         "max_tokens_to_sample": 10000,
         "temperature": 0.5,
-        "top_p": 0.9,
-        "prompt": prompt_text,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {
+                    "type": "text",
+                    "text": prompt_text
+                }
+                ],
+            }
+        ],
     }
+
+    body = json.dumps(prompt_config)
+
+    modelId = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+
     response = get_bedrock_text_reponse(
             query_bedrock(payload=model_kwargs_text, model_id=model_id)
     )

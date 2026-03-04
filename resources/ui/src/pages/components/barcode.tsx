@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext } from "react";
 import { Html5QrcodeScanType, Html5QrcodeScanner } from "html5-qrcode";
+import { useSearchParams } from "react-router-dom";
 import Button from "@cloudscape-design/components/button";
 import Ingredients from "./barcode_ingredients";
 import Badge from "@cloudscape-design/components/badge";
@@ -40,12 +41,28 @@ const isBarcodeValid = (decodedText: string) => {
 const Barcode: React.FC = () => {
   const language = useContext(LanguageContext);
   const { devMode } = useContext(DevModeContext);
+  const [searchParams] = useSearchParams();
   const [productCode, setProductCode] = useState("");
   const [showScanner, setShowScanner] = useState(false);
   const [tempProductCode, setTempProductCode] = useState("");
-  const currentTranslations = customTranslations[language]; // Get translations for the current language or fallback to English
+  const [hasPreferences, setHasPreferences] = useState(false);
+  const currentTranslations = customTranslations[language];
 
   let html5QrcodeScanner: any;
+
+  // Auto-fetch product if barcode in URL
+  useEffect(() => {
+    const code = searchParams.get('code');
+    if (code && isBarcodeValid(code)) {
+      setProductCode(code);
+    }
+  }, [searchParams]);
+
+  // Check if user has set preferences
+  useEffect(() => {
+    const stored = localStorage.getItem("userPreferences");
+    setHasPreferences(!!stored);
+  }, []);
 
   function onScanFailure(error: unknown) {
     console.warn(`Code scan error = ${error}`);
@@ -153,28 +170,46 @@ const Barcode: React.FC = () => {
           </div>
         </div>
 
-        {!showScanner && (
-          <Box>
-            <div style={{ textAlign: "left" }}>
-              <h4>{currentTranslations["scan_main_title"]}</h4>
-
-              <SpaceBetween direction="vertical" size="m">
-                <div>
-                  <p>
-                    <Badge color="green">1</Badge>{" "}
-                    {currentTranslations["scan_label_1"]}{" "}
-                    <Link href="/preference">
-                      {currentTranslations["scan_label_2"]}
-                    </Link>
-                  </p>
-                  <p>
-                    <Badge color="green">2</Badge>{" "}
-                    {currentTranslations["scan_label_3"]}
-                  </p>
-                </div>
-              </SpaceBetween>
+        {!showScanner && !productCode && (
+          <div>
+            {/* Hero Section */}
+            <div style={{
+              background: "linear-gradient(135deg, #00C853 0%, #64DD17 100%)",
+              borderRadius: "16px",
+              padding: "20px 16px",
+              marginBottom: "20px",
+              boxShadow: "0 4px 16px rgba(0, 200, 83, 0.2)",
+              textAlign: "center",
+            }}>
+              <h1 style={{
+                fontSize: "clamp(1.3rem, 4vw, 2.5rem)",
+                fontWeight: "700",
+                color: "#fff",
+                marginBottom: "6px",
+                lineHeight: "1.2",
+              }}>
+                🔍 Scan Product Barcode
+              </h1>
+              <p style={{
+                color: "rgba(255, 255, 255, 0.95)",
+                fontSize: "clamp(0.85rem, 2.5vw, 1rem)",
+                marginBottom: "0",
+                lineHeight: "1.3",
+              }}>
+                Get personalized nutrition & allergen info
+              </p>
             </div>
-          </Box>
+
+            {!hasPreferences && (
+              <Alert
+                type="warning"
+                header="Set your preferences first"
+              >
+                To get personalized nutritional information, please{" "}
+                <Link href="/preference">set your preferences</Link> before scanning.
+              </Alert>
+            )}
+          </div>
         )}
         <div id="reader"></div>
 

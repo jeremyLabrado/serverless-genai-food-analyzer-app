@@ -100,13 +100,17 @@ async function signRequest(request) {
     ];
   }
 
-  return {
+  const result = {
     ...request,
     headers: {
       ...request.headers,
       ...signedHeaders,
     },
   };
+  if (request.body && request.body.data) {
+    result.body = { ...request.body, action: "replace" };
+  }
+  return result;
 }
 
 const getToken = async (authorization) => {

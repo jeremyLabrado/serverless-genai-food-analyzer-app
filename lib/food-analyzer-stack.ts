@@ -6,6 +6,7 @@ import {
   aws_cloudfront_origins as origins,
   aws_cloudfront as cloudfront,
   aws_iam as iam,
+  aws_cloudtrail as cloudtrail,
   CfnOutput,
   Duration,
   Aws,
@@ -34,6 +35,8 @@ import {
   execSync,
 } from "node:child_process";
 import { Utils } from "./utils";
+import { NagSuppressions } from "cdk-nag";
+import * as wafv2 from "aws-cdk-lib/aws-wafv2";
 
 export class FoodAnalyzerStack extends Stack {
   public userPool: IUserPool;
@@ -45,6 +48,13 @@ export class FoodAnalyzerStack extends Stack {
   public productSummary: IFunction;
   constructor(scope: Construct, id: string, stage: string, props: StackProps) {
     super(scope, id, props);
+
+    // Add cost allocation tags
+    cdk.Tags.of(this).add('Application', 'FoodAnalyzer');
+    cdk.Tags.of(this).add('Environment', stage);
+    cdk.Tags.of(this).add('CostCenter', 'Prototyping');
+    cdk.Tags.of(this).add('Owner', 'energy-utilities-france');
+    cdk.Tags.of(this).add('Project', 'SmartGroceries');
 
     const powerToolsLayer = lambda.LayerVersion.fromLayerVersionArn(
       this,
@@ -115,6 +125,36 @@ export class FoodAnalyzerStack extends Stack {
         sortKey: { name: "params_hash", type: dynamodb.AttributeType.STRING },
         billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
         encryption: TableEncryption.DEFAULT,
+        timeToLiveAttribute: "ttl",
+      }
+    );
+
+    const recipeCacheTable = new dynamodb.Table(
+      this,
+      "RecipeCacheTable",
+      {
+        partitionKey: {
+          name: "ingredients_hash",
+          type: dynamodb.AttributeType.STRING,
+        },
+        sortKey: { name: "params_hash", type: dynamodb.AttributeType.STRING },
+        billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+        encryption: TableEncryption.DEFAULT,
+        timeToLiveAttribute: "ttl",
+      }
+    );
+
+    const ingredientCacheTable = new dynamodb.Table(
+      this,
+      "IngredientCacheTable",
+      {
+        partitionKey: {
+          name: "image_hash",
+          type: dynamodb.AttributeType.STRING,
+        },
+        billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+        encryption: TableEncryption.DEFAULT,
+        timeToLiveAttribute: "ttl",
       }
     );
 
@@ -146,6 +186,30 @@ export class FoodAnalyzerStack extends Stack {
       }
     );
 
+    // Optimized cache policy for static assets
+    const staticAssetCachePolicy = new cloudfront.CachePolicy(
+      this,
+      "StaticAssetCachePolicy",
+      {
+        cachePolicyName: "StaticAssetCache-" + Aws.STACK_NAME,
+        defaultTtl: Duration.hours(24),
+        minTtl: Duration.minutes(1),
+        maxTtl: Duration.days(365),
+        headerBehavior: cloudfront.CacheHeaderBehavior.none(),
+        queryStringBehavior: cloudfront.CacheQueryStringBehavior.none(),
+        cookieBehavior: cloudfront.CacheCookieBehavior.none(),
+      }
+    );
+
+    // S3 access logging bucket
+    const accessLogsBucket = new s3.Bucket(this, "AccessLogsBucket", {
+      enforceSSL: true,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      objectOwnership: s3.ObjectOwnership.OBJECT_WRITER,
+      lifecycleRules: [{ expiration: Duration.days(90) }],
+    });
+
     const hostingBucket = new s3.Bucket(this, "HostingBucket", {
       enforceSSL: true,
       encryption: s3.BucketEncryption.S3_MANAGED,
@@ -156,6 +220,8 @@ export class FoodAnalyzerStack extends Stack {
         ignorePublicAcls: true,
         restrictPublicBuckets: true,
       }),
+      serverAccessLogsBucket: accessLogsBucket,
+      serverAccessLogsPrefix: "hosting-logs/",
     });
 
     const imgBucket = new s3.Bucket(this, "ImgBucket", {
@@ -168,15 +234,17 @@ export class FoodAnalyzerStack extends Stack {
         ignorePublicAcls: true,
         restrictPublicBuckets: true,
       }),
+      serverAccessLogsBucket: accessLogsBucket,
+      serverAccessLogsPrefix: "img-logs/",
     });
 
-    const hostingOrigin = new origins.S3Origin(hostingBucket);
-    const s3ImgOrigin = new origins.S3Origin(imgBucket);
+    const hostingOrigin = origins.S3BucketOrigin.withOriginAccessControl(hostingBucket);
+    const s3ImgOrigin = origins.S3BucketOrigin.withOriginAccessControl(imgBucket);
 
     const customImgBehaviour: cloudfront.BehaviorOptions = {
       origin: s3ImgOrigin,
       responseHeadersPolicy: myResponseHeadersPolicy,
-      cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED, //imgCachePolicy,
+      cachePolicy: staticAssetCachePolicy,
       allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
       viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
     };
@@ -188,15 +256,69 @@ export class FoodAnalyzerStack extends Stack {
       comment: "URL Rewrite function",
     });
 
+    // WAF WebACL for CloudFront (AwsSolutions-CFR2)
+    const webAcl = new wafv2.CfnWebACL(this, "CloudFrontWebACL", {
+      defaultAction: { allow: {} },
+      scope: "CLOUDFRONT",
+      visibilityConfig: {
+        cloudWatchMetricsEnabled: true,
+        metricName: "FoodAnalyzerWAF",
+        sampledRequestsEnabled: true,
+      },
+      rules: [
+        {
+          name: "AWSManagedRulesCommonRuleSet",
+          priority: 1,
+          overrideAction: { none: {} },
+          statement: {
+            managedRuleGroupStatement: {
+              vendorName: "AWS",
+              name: "AWSManagedRulesCommonRuleSet",
+              excludedRules: [
+                { name: "SizeRestrictions_BODY" },
+                { name: "CrossSiteScripting_BODY" },
+                { name: "GenericRFI_BODY" },
+              ],
+            },
+          },
+          visibilityConfig: {
+            cloudWatchMetricsEnabled: true,
+            metricName: "CommonRuleSet",
+            sampledRequestsEnabled: true,
+          },
+        },
+      ],
+    });
+
+    // CloudFront access logging bucket (AwsSolutions-CFR3)
+    const cfLogsBucket = new s3.Bucket(this, "CloudFrontLogsBucket", {
+      enforceSSL: true,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      objectOwnership: s3.ObjectOwnership.OBJECT_WRITER,
+      serverAccessLogsBucket: accessLogsBucket,
+      serverAccessLogsPrefix: "cf-logs-bucket-logs/",
+      lifecycleRules: [{ expiration: Duration.days(90) }],
+    });
+
     const distribution = new cloudfront.Distribution(this, "distribution", {
       comment: "FoodAnalyzer UI",
       defaultRootObject: "index.html",
       httpVersion: cloudfront.HttpVersion.HTTP2_AND_3,
       minimumProtocolVersion: cloudfront.SecurityPolicyProtocol.TLS_V1_2_2021,
+      webAclId: webAcl.attrArn,
+      enableLogging: true,
+      logBucket: cfLogsBucket,
+      logFilePrefix: "cf-access-logs/",
+      geoRestriction: cloudfront.GeoRestriction.allowlist(
+        "US", "FR", "DE", "GB", "ES", "IT", "NL", "BE", "CH", "AT",
+        "PT", "IE", "LU", "SE", "DK", "FI", "NO", "PL", "CZ", "JP",
+        "AU", "CA", "SG", "IN", "BR", "MX", "KR", "IL"
+      ),
       defaultBehavior: {
         origin: hostingOrigin,
         responseHeadersPolicy: myResponseHeadersPolicy,
-        cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED, //defaultCachePolicy,
+        cachePolicy: staticAssetCachePolicy,
         allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD,
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         functionAssociations: [
@@ -242,6 +364,23 @@ export class FoodAnalyzerStack extends Stack {
               "bash", "-c",
               "pip install -r requirements.txt -t /asset-output && cp -au . /asset-output"
             ],
+            local: {
+              tryBundle(outputDir: string) {
+                try {
+                  execSync(
+                    `pip3 install -r requirements.txt -t "${outputDir}" --quiet`,
+                    { cwd: path.join(__dirname, "../lambda/barcode_ingredients"), stdio: "inherit" }
+                  );
+                  Utils.copyDirRecursive(
+                    path.join(__dirname, "../lambda/barcode_ingredients"),
+                    outputDir
+                  );
+                  return true;
+                } catch {
+                  return false;
+                }
+              },
+            },
           },
         }),
         memorySize: 10240,
@@ -277,7 +416,7 @@ export class FoodAnalyzerStack extends Stack {
           "logs:CreateLogStream",
           "logs:PutLogEvents",
         ],
-        resources: ["arn:aws:logs:*:*:*"],
+        resources: [`arn:aws:logs:${Aws.REGION}:${Aws.ACCOUNT_ID}:log-group:/aws/lambda/*`],
       })
     );
 
@@ -286,7 +425,8 @@ export class FoodAnalyzerStack extends Stack {
         effect: iam.Effect.ALLOW,
         actions: ["bedrock:InvokeModel"],
         resources: [
-          `arn:${Aws.PARTITION}:bedrock:${Aws.REGION}::foundation-model/*`,
+          `arn:${Aws.PARTITION}:bedrock:${Aws.REGION}:${Aws.ACCOUNT_ID}:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0`,
+          `arn:${Aws.PARTITION}:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0`,
         ],
       })
     );
@@ -317,11 +457,14 @@ export class FoodAnalyzerStack extends Stack {
         environment: {
           POWERTOOLS_SERVICE_NAME: "food-lens",
           POWERTOOLS_LOG_LEVEL: "DEBUG",
+          INGREDIENT_CACHE_TABLE_NAME: ingredientCacheTable.tableName,
         },
       }
     );
 
     this.getImageIngredients = recipeImageIngredientsFunction;
+
+    ingredientCacheTable.grantReadWriteData(recipeImageIngredientsFunction);
 
     recipeImageIngredientsFunction.addToRolePolicy(
       new iam.PolicyStatement({
@@ -331,7 +474,7 @@ export class FoodAnalyzerStack extends Stack {
           "logs:CreateLogStream",
           "logs:PutLogEvents",
         ],
-        resources: ["arn:aws:logs:*:*:*"],
+        resources: [`arn:aws:logs:${Aws.REGION}:${Aws.ACCOUNT_ID}:log-group:/aws/lambda/*`],
       })
     );
 
@@ -340,7 +483,8 @@ export class FoodAnalyzerStack extends Stack {
         effect: iam.Effect.ALLOW,
         actions: ["bedrock:InvokeModel"],
         resources: [
-          `arn:${Aws.PARTITION}:bedrock:${Aws.REGION}::foundation-model/*`,
+          `arn:${Aws.PARTITION}:bedrock:${Aws.REGION}:${Aws.ACCOUNT_ID}:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0`,
+          `arn:${Aws.PARTITION}:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0`,
         ],
       })
     );
@@ -367,12 +511,14 @@ export class FoodAnalyzerStack extends Stack {
           POWERTOOLS_SERVICE_NAME: "food-lens",
           POWERTOOLS_LOG_LEVEL: "DEBUG",
           S3_BUCKET_NAME: imgBucket.bucketName,
+          RECIPE_CACHE_TABLE_NAME: recipeCacheTable.tableName,
         },
       }
     );
     this.generateRecipe = recipeProposalsFunction;
 
     imgBucket.grantWrite(recipeProposalsFunction);
+    recipeCacheTable.grantReadWriteData(recipeProposalsFunction);
 
     recipeProposalsFunction.addToRolePolicy(
       new iam.PolicyStatement({
@@ -382,7 +528,7 @@ export class FoodAnalyzerStack extends Stack {
           "logs:CreateLogStream",
           "logs:PutLogEvents",
         ],
-        resources: ["arn:aws:logs:*:*:*"],
+        resources: [`arn:aws:logs:${Aws.REGION}:${Aws.ACCOUNT_ID}:log-group:/aws/lambda/*`],
       })
     );
 
@@ -391,7 +537,9 @@ export class FoodAnalyzerStack extends Stack {
         effect: iam.Effect.ALLOW,
         actions: ["bedrock:InvokeModel"],
         resources: [
-          `arn:${Aws.PARTITION}:bedrock:${Aws.REGION}::foundation-model/*`,
+          `arn:${Aws.PARTITION}:bedrock:${Aws.REGION}:${Aws.ACCOUNT_ID}:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0`,
+          `arn:${Aws.PARTITION}:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0`,
+          `arn:${Aws.PARTITION}:bedrock:${Aws.REGION}::foundation-model/amazon.nova-canvas-v1:0`,
         ],
       })
     );
@@ -429,7 +577,7 @@ export class FoodAnalyzerStack extends Stack {
           "logs:CreateLogStream",
           "logs:PutLogEvents",
         ],
-        resources: ["arn:aws:logs:*:*:*"],
+        resources: [`arn:aws:logs:${Aws.REGION}:${Aws.ACCOUNT_ID}:log-group:/aws/lambda/*`],
       })
     );
 
@@ -500,7 +648,7 @@ export class FoodAnalyzerStack extends Stack {
           "logs:CreateLogStream",
           "logs:PutLogEvents",
         ],
-        resources: ["arn:aws:logs:*:*:*"],
+        resources: [`arn:aws:logs:${Aws.REGION}:${Aws.ACCOUNT_ID}:log-group:/aws/lambda/*`],
       })
     );
 
@@ -512,7 +660,8 @@ export class FoodAnalyzerStack extends Stack {
           "bedrock:InvokeModelWithResponseStream",
         ],
         resources: [
-          `arn:${Aws.PARTITION}:bedrock:${Aws.REGION}::foundation-model/*`,
+          `arn:${Aws.PARTITION}:bedrock:${Aws.REGION}:${Aws.ACCOUNT_ID}:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0`,
+          `arn:${Aws.PARTITION}:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0`,
         ],
       })
     );
@@ -528,7 +677,7 @@ export class FoodAnalyzerStack extends Stack {
           "logs:CreateLogStream",
           "logs:PutLogEvents",
         ],
-        resources: ["arn:aws:logs:*:*:*"],
+        resources: [`arn:aws:logs:${Aws.REGION}:${Aws.ACCOUNT_ID}:log-group:/aws/lambda/*`],
       })
     );
 
@@ -537,7 +686,9 @@ export class FoodAnalyzerStack extends Stack {
         effect: iam.Effect.ALLOW,
         actions: ["bedrock:InvokeModel"],
         resources: [
-          `arn:${Aws.PARTITION}:bedrock:${Aws.REGION}::foundation-model/*`,
+          `arn:${Aws.PARTITION}:bedrock:${Aws.REGION}:${Aws.ACCOUNT_ID}:inference-profile/us.anthropic.claude-haiku-4-5-20251001-v1:0`,
+          `arn:${Aws.PARTITION}:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0`,
+          `arn:${Aws.PARTITION}:bedrock:${Aws.REGION}::foundation-model/amazon.nova-canvas-v1:0`,
         ],
       })
     );
@@ -754,6 +905,15 @@ export class FoodAnalyzerStack extends Stack {
       memoryLimit: 2048,
       ephemeralStorageSize: cdk.Size.mebibytes(1024),
     });
+    
+    // Deploy test fridge images to img bucket
+    new s3deploy.BucketDeployment(this, "DeployTestImages", {
+      sources: [s3deploy.Source.asset(path.join(__dirname, "..", "img"))],
+      destinationBucket: imgBucket,
+      destinationKeyPrefix: "img/",
+      memoryLimit: 512,
+    });
+    
     new FoodAnalyzerDashBoard(this, "Dashboard", {
       stage: stage,
       functionList: [
@@ -768,8 +928,71 @@ export class FoodAnalyzerStack extends Stack {
 
 
 
-  const loadDatabase = new LoadDatabase(this, "LoadSF", openFoodFactsProductsTable, this.stackName);
+  const loadDatabase = new LoadDatabase(this, "LoadSF", openFoodFactsProductsTable, this.stackName, accessLogsBucket);
 
+    // Enable CloudTrail for audit logging
+    const trailBucket = new s3.Bucket(this, 'TrailBucket', {
+      enforceSSL: true,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      serverAccessLogsBucket: accessLogsBucket,
+      serverAccessLogsPrefix: "trail-bucket-logs/",
+      lifecycleRules: [{
+        expiration: Duration.days(90),
+      }],
+    });
+
+    const trail = new cloudtrail.Trail(this, 'AuditTrail', {
+      trailName: `FoodAnalyzer-${stage}-Trail`,
+      bucket: trailBucket,
+      isMultiRegionTrail: false,
+      includeGlobalServiceEvents: true,
+      managementEvents: cloudtrail.ReadWriteType.ALL,
+    });
+
+    // cdk-nag suppressions — only for CDK construct limitations that cannot be fixed in code
+    NagSuppressions.addStackSuppressions(this, [
+      { id: 'AwsSolutions-IAM4', reason: 'AWS managed AWSLambdaBasicExecutionRole used by CDK-managed constructs (BucketDeployment, LogRetention, EdgeFunction) whose roles are not directly controllable' },
+      { id: 'AwsSolutions-CFR4', reason: 'Default CloudFront certificate (*.cloudfront.net) enforces TLSv1 minimum regardless of minimumProtocolVersion — requires custom domain + ACM cert to fix' },
+      { id: 'AwsSolutions-SMG4', reason: 'Secret contains Cognito UserPool/Client IDs (configuration data), not credentials — rotation is not applicable' },
+      { id: 'AwsSolutions-L1', reason: 'CDK BucketDeployment internal Lambda runtime is managed by the CDK construct and cannot be overridden' },
+    ]);
+
+    // Scoped suppressions for CDK-generated wildcard policies we cannot control
+    NagSuppressions.addResourceSuppressionsByPath(this, [
+      '/FoodAnalyzer/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C512MiB/ServiceRole/DefaultPolicy/Resource',
+      '/FoodAnalyzer/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource',
+      '/FoodAnalyzer/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource',
+    ], [
+      { id: 'AwsSolutions-IAM5', reason: 'Wildcard permissions auto-generated by CDK BucketDeployment and LogRetention constructs — not directly controllable' },
+    ]);
+
+    // Suppressions for CDK grant()-generated S3 wildcards and Cognito SMS role
+    NagSuppressions.addResourceSuppressionsByPath(this,
+      '/FoodAnalyzer/Authentication/FoodAnalyzerUserPool/smsRole/Resource',
+      [{ id: 'AwsSolutions-IAM5', reason: 'Cognito SMS role with Resource::* is auto-generated by CDK UserPool construct for SNS SMS publishing' }],
+    );
+    for (const rolePath of ['/FoodAnalyzer/LambdaRole/DefaultPolicy/Resource', '/FoodAnalyzer/BasicLambdaRole/DefaultPolicy/Resource']) {
+      NagSuppressions.addResourceSuppressionsByPath(this, rolePath, [
+        { id: 'AwsSolutions-IAM5', reason: 'S3 grantWrite() generates s3:Abort*, s3:DeleteObject*, bucket/* — CDK grant pattern, bucket-scoped', appliesTo: ['Action::s3:Abort*', 'Action::s3:DeleteObject*', 'Resource::<ImgBucketDC4B6F5E.Arn>/*'] },
+        { id: 'AwsSolutions-IAM5', reason: 'Log group name is dynamic (CDK-generated), wildcard after /aws/lambda/ prefix is necessary', appliesTo: ['Resource::arn:aws:logs:<AWS::Region>:<AWS::AccountId>:log-group:/aws/lambda/*'] },
+        { id: 'AwsSolutions-IAM5', reason: 'DynamoDB grantReadWriteData() generates index wildcard — CDK grant pattern', appliesTo: ['Resource::*'] },
+        { id: 'AwsSolutions-IAM5', reason: 'Cross-region inference profile requires foundation model ARN with wildcard region', appliesTo: ['Resource::arn:<AWS::Partition>:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0'] },
+      ]);
+    }
+
+    // LoadSF and AuthEdge construct suppressions
+    NagSuppressions.addResourceSuppressionsByPath(this, [
+      '/FoodAnalyzer/LoadSF/Project/Role/DefaultPolicy/Resource',
+      '/FoodAnalyzer/LoadSF/LoadDatabase/Role/DefaultPolicy/Resource',
+    ], [
+      { id: 'AwsSolutions-IAM5', reason: 'CodeBuild and StepFunctions roles require wildcards for log groups, report groups, and S3 source — CDK construct generated' },
+    ]);
+
+    NagSuppressions.addResourceSuppressionsByPath(this,
+      '/FoodAnalyzer/AuthFunctionAtEdge/Fn/ServiceRole/DefaultPolicy/Resource',
+      [{ id: 'AwsSolutions-IAM5', reason: 'Secrets Manager ARN uses wildcard suffix because CDK appends random chars to secret name' }],
+    );
   }
 
   /**
