@@ -10,24 +10,27 @@ import {
   aws_iam as iam,
   aws_kms as kms,
   RemovalPolicy,
+  Duration,
 } from "aws-cdk-lib";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { LogLevel } from "aws-cdk-lib/aws-stepfunctions";
 import { Construct } from "constructs";
 
 export class LoadDatabase extends Construct {
-  constructor(scope: Construct, id: string, tableToLoad: dynamodb.Table, stackName: string, accessLogsBucket?: s3.IBucket) {
+  constructor(scope: Construct, id: string, tableToLoad: dynamodb.Table, stackName: string, accessLogsBucket?: s3.IBucket, logEncryptionKey?: kms.IKey) {
     super(scope, id);
 
     const loadSourceCode = new s3.Bucket(this, "LoadSourceCode", {
       enforceSSL: true,
       encryption: s3.BucketEncryption.S3_MANAGED,
+      versioned: true,
       blockPublicAccess: new s3.BlockPublicAccess({
         blockPublicPolicy: true,
         blockPublicAcls: true,
         ignorePublicAcls: true,
         restrictPublicBuckets: true,
       }),
+      lifecycleRules: [{ noncurrentVersionExpiration: Duration.days(30) }],
       ...(accessLogsBucket && {
         serverAccessLogsBucket: accessLogsBucket,
         serverAccessLogsPrefix: "load-source-logs/",
@@ -43,7 +46,10 @@ export class LoadDatabase extends Construct {
       encryptionKey: codeBuildKey,
       logging: {
         cloudWatch: {
-          logGroup: new logs.LogGroup(this, `MyLogGroup`),
+          logGroup: new logs.LogGroup(this, `MyLogGroup`, {
+            retention: RetentionDays.ONE_YEAR,
+            ...(logEncryptionKey && { encryptionKey: logEncryptionKey }),
+          }),
         },
       },
       projectName: "CrawlProject" + Aws.STACK_NAME,
@@ -111,7 +117,8 @@ export class LoadDatabase extends Construct {
     const sfnLog = new LogGroup(this, "sfnLog", {
       logGroupName: "/aws/vendedlogs/states/" + Aws.STACK_NAME,
       removalPolicy: RemovalPolicy.DESTROY,
-      retention: RetentionDays.ONE_WEEK,
+      retention: RetentionDays.ONE_YEAR,
+      ...(logEncryptionKey && { encryptionKey: logEncryptionKey }),
     });
 
     const stepFunction = new sfn.StateMachine(this, "LoadDatabase", {

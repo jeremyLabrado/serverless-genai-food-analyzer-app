@@ -154,10 +154,10 @@ function generateProductSummaryPrompt(
     
     let userContext = '';
     // nosemgrep: html-in-template-string -- These are XML-like tags in an LLM prompt sent to Bedrock, not browser HTML
-    if (userAllergies) userContext += `\n<user_allergies>${userAllergies}</user_allergies>`;
-    if (userHealthGoal) userContext += `\n<user_health_goal>${userHealthGoal}</user_health_goal>`;
-    if (userPreference) userContext += `\n<user_dietary_preferences>${userPreference}</user_dietary_preferences>`;
-    if (userReligion) userContext += `\n<user_religious_requirement>${userReligion}</user_religious_requirement>`;
+    if (userAllergies) userContext += `\n<user_allergies>${userAllergies}</user_allergies>`; // nosemgrep: html-in-template-string
+    if (userHealthGoal) userContext += `\n<user_health_goal>${userHealthGoal}</user_health_goal>`; // nosemgrep: html-in-template-string
+    if (userPreference) userContext += `\n<user_dietary_preferences>${userPreference}</user_dietary_preferences>`; // nosemgrep: html-in-template-string
+    if (userReligion) userContext += `\n<user_religious_requirement>${userReligion}</user_religious_requirement>`; // nosemgrep: html-in-template-string
     
     // nosemgrep: html-in-template-string -- LLM prompt template with XML-like tags, not rendered HTML
     return `Human:

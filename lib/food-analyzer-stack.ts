@@ -37,6 +37,8 @@ import {
 import { Utils } from "./utils";
 import { NagSuppressions } from "cdk-nag";
 import * as wafv2 from "aws-cdk-lib/aws-wafv2";
+import * as kms from "aws-cdk-lib/aws-kms";
+import * as logs from "aws-cdk-lib/aws-logs";
 
 export class FoodAnalyzerStack extends Stack {
   public userPool: IUserPool;
@@ -78,7 +80,8 @@ export class FoodAnalyzerStack extends Stack {
         type: dynamodb.AttributeType.STRING,
       },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      encryption: TableEncryption.DEFAULT,
+      encryption: TableEncryption.AWS_MANAGED,
+        pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
     });
 
     new CfnOutput(this, "openFoodFactsProductsTableNameOutput", {
@@ -93,7 +96,8 @@ export class FoodAnalyzerStack extends Stack {
       },
       sortKey: { name: "language", type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      encryption: TableEncryption.DEFAULT,
+      encryption: TableEncryption.AWS_MANAGED,
+        pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
     });
 
     const productsSummaryTable = new dynamodb.Table(
@@ -106,7 +110,39 @@ export class FoodAnalyzerStack extends Stack {
         },
         sortKey: { name: "params_hash", type: dynamodb.AttributeType.STRING },
         billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-        encryption: TableEncryption.DEFAULT,
+        encryption: TableEncryption.AWS_MANAGED,
+        pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
+        timeToLiveAttribute: "ttl",
+      }
+    );
+
+    const recipeCacheTable = new dynamodb.Table(
+      this,
+      "RecipeCacheTable",
+      {
+        partitionKey: {
+          name: "ingredients_hash",
+          type: dynamodb.AttributeType.STRING,
+        },
+        sortKey: { name: "params_hash", type: dynamodb.AttributeType.STRING },
+        billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+        encryption: TableEncryption.AWS_MANAGED,
+        pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
+        timeToLiveAttribute: "ttl",
+      }
+    );
+
+    const ingredientCacheTable = new dynamodb.Table(
+      this,
+      "IngredientCacheTable",
+      {
+        partitionKey: {
+          name: "image_hash",
+          type: dynamodb.AttributeType.STRING,
+        },
+        billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+        encryption: TableEncryption.AWS_MANAGED,
+        pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
         timeToLiveAttribute: "ttl",
       }
     );
@@ -122,7 +158,6 @@ export class FoodAnalyzerStack extends Stack {
         sortKey: { name: "params_hash", type: dynamodb.AttributeType.STRING },
         billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
         encryption: TableEncryption.DEFAULT,
-        timeToLiveAttribute: "ttl",
       }
     );
 
@@ -136,7 +171,6 @@ export class FoodAnalyzerStack extends Stack {
         },
         billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
         encryption: TableEncryption.DEFAULT,
-        timeToLiveAttribute: "ttl",
       }
     );
 
@@ -189,12 +223,26 @@ export class FoodAnalyzerStack extends Stack {
       encryption: s3.BucketEncryption.S3_MANAGED,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       objectOwnership: s3.ObjectOwnership.OBJECT_WRITER,
+      versioned: true,
       lifecycleRules: [{ expiration: Duration.days(90) }],
     });
+
+    // KMS key for CloudWatch log encryption
+    const logEncryptionKey = new kms.Key(this, "LogEncryptionKey", {
+      enableKeyRotation: true,
+      description: "KMS key for CloudWatch log group encryption",
+    });
+    logEncryptionKey.addToResourcePolicy(new iam.PolicyStatement({
+      actions: ["kms:Encrypt*", "kms:Decrypt*", "kms:ReEncrypt*", "kms:GenerateDataKey*", "kms:Describe*"],
+      resources: ["*"],
+      principals: [new iam.ServicePrincipal(`logs.${Aws.REGION}.amazonaws.com`)],
+      conditions: { ArnLike: { "kms:EncryptionContext:aws:logs:arn": `arn:aws:logs:${Aws.REGION}:${Aws.ACCOUNT_ID}:*` } },
+    }));
 
     const hostingBucket = new s3.Bucket(this, "HostingBucket", {
       enforceSSL: true,
       encryption: s3.BucketEncryption.S3_MANAGED,
+      versioned: true,
       blockPublicAccess: new s3.BlockPublicAccess({
         blockPublicPolicy: true,
         blockPublicAcls: true,
@@ -203,11 +251,13 @@ export class FoodAnalyzerStack extends Stack {
       }),
       serverAccessLogsBucket: accessLogsBucket,
       serverAccessLogsPrefix: "hosting-logs/",
+      lifecycleRules: [{ noncurrentVersionExpiration: Duration.days(30) }],
     });
 
     const imgBucket = new s3.Bucket(this, "ImgBucket", {
       enforceSSL: true,
       encryption: s3.BucketEncryption.S3_MANAGED,
+      versioned: true,
       blockPublicAccess: new s3.BlockPublicAccess({
         blockPublicPolicy: true,
         blockPublicAcls: true,
@@ -216,6 +266,7 @@ export class FoodAnalyzerStack extends Stack {
       }),
       serverAccessLogsBucket: accessLogsBucket,
       serverAccessLogsPrefix: "img-logs/",
+      lifecycleRules: [{ noncurrentVersionExpiration: Duration.days(30) }],
     });
 
     const hostingOrigin = origins.S3BucketOrigin.withOriginAccessControl(hostingBucket);
@@ -274,6 +325,7 @@ export class FoodAnalyzerStack extends Stack {
     const cfLogsBucket = new s3.Bucket(this, "CloudFrontLogsBucket", {
       enforceSSL: true,
       encryption: s3.BucketEncryption.S3_MANAGED,
+      versioned: true,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       objectOwnership: s3.ObjectOwnership.OBJECT_WRITER,
       serverAccessLogsBucket: accessLogsBucket,
@@ -295,6 +347,12 @@ export class FoodAnalyzerStack extends Stack {
         "PT", "IE", "LU", "SE", "DK", "FI", "NO", "PL", "CZ", "JP",
         "AU", "CA", "SG", "IN", "BR", "MX", "KR", "IL"
       ),
+      errorResponses: [
+        { httpStatus: 500, ttl: Duration.seconds(0) },
+        { httpStatus: 502, ttl: Duration.seconds(0) },
+        { httpStatus: 503, ttl: Duration.seconds(0) },
+        { httpStatus: 504, ttl: Duration.seconds(0) },
+      ],
       defaultBehavior: {
         origin: hostingOrigin,
         responseHeadersPolicy: myResponseHeadersPolicy,
@@ -327,6 +385,10 @@ export class FoodAnalyzerStack extends Stack {
       assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
     });
 
+    const barcodeIngredientsLogGroup = new logs.LogGroup(this, "GetIngredientsLogGroup", {
+      retention: logs.RetentionDays.ONE_YEAR,
+      encryptionKey: logEncryptionKey,
+    });
     const barcodeIngredientsFunction = new lambda.Function(
       this,
       "GetIngredients",
@@ -364,7 +426,7 @@ export class FoodAnalyzerStack extends Stack {
         layers: [powerToolsLayer],
         tracing: Tracing.ACTIVE,
         timeout: Duration.minutes(5),
-        logRetention: RetentionDays.ONE_WEEK,
+        logGroup: barcodeIngredientsLogGroup,
         retryAttempts: 0,
         environment: {
           POWERTOOLS_SERVICE_NAME: "food-lens",
@@ -412,6 +474,10 @@ export class FoodAnalyzerStack extends Stack {
       invokeMode: lambda.InvokeMode.BUFFERED,
     });
 
+    const recipeImageIngredientsLogGroup = new logs.LogGroup(this, "GetImageIngredientsLogGroup", {
+      retention: logs.RetentionDays.ONE_YEAR,
+      encryptionKey: logEncryptionKey,
+    });
     const recipeImageIngredientsFunction = new lambda.Function(
       this,
       "GetImageIngredients",
@@ -424,7 +490,7 @@ export class FoodAnalyzerStack extends Stack {
         layers: [powerToolsLayer],
         tracing: Tracing.ACTIVE,
         timeout: Duration.minutes(5),
-        logRetention: RetentionDays.ONE_WEEK,
+        logGroup: recipeImageIngredientsLogGroup,
         retryAttempts: 0,
         environment: {
           POWERTOOLS_SERVICE_NAME: "food-lens",
@@ -461,6 +527,10 @@ export class FoodAnalyzerStack extends Stack {
       })
     );
 
+    const recipeProposalsLogGroup = new logs.LogGroup(this, "GenerateRecipeLogGroup", {
+      retention: logs.RetentionDays.ONE_YEAR,
+      encryptionKey: logEncryptionKey,
+    });
     const recipeProposalsFunction = new lambda.Function(
       this,
       "GenerateRecipe",
@@ -473,7 +543,7 @@ export class FoodAnalyzerStack extends Stack {
         layers: [powerToolsLayer],
         tracing: Tracing.ACTIVE,
         timeout: Duration.minutes(5),
-        logRetention: RetentionDays.ONE_WEEK,
+        logGroup: recipeProposalsLogGroup,
         retryAttempts: 0,
         environment: {
           POWERTOOLS_SERVICE_NAME: "food-lens",
@@ -512,14 +582,19 @@ export class FoodAnalyzerStack extends Stack {
       })
     );
 
+    const barcodeImageLogGroup = new logs.LogGroup(this, "GenerateImageLogGroup", {
+      retention: logs.RetentionDays.ONE_YEAR,
+      encryptionKey: logEncryptionKey,
+    });
     const barcodeImageFunction = new lambda.Function(this, "GenerateImage", {
       runtime: lambda.Runtime.PYTHON_3_14,
       handler: "index.handler",
       code: lambda.Code.fromAsset("lambda/barcode_image"),
-      memorySize: 10240, // 10240 MB
+      memorySize: 10240,
       timeout: Duration.minutes(5),
       role: basicLambdaRole,
       layers: [powerToolsLayer],
+      logGroup: barcodeImageLogGroup,
       environment: {
         POWERTOOLS_SERVICE_NAME: "food-lens",
         POWERTOOLS_LOG_LEVEL: "DEBUG",
@@ -545,6 +620,10 @@ export class FoodAnalyzerStack extends Stack {
       })
     );
 
+    const barcodeProductSummaryLogGroup = new logs.LogGroup(this, "GetProductSummaryLogGroup", {
+      retention: logs.RetentionDays.ONE_YEAR,
+      encryptionKey: logEncryptionKey,
+    });
     const barcodeProductSummaryFunction = new nodejs.NodejsFunction(
       this,
       "GetProductSummaryLambda",
@@ -557,6 +636,7 @@ export class FoodAnalyzerStack extends Stack {
         role: basicLambdaRole,
         timeout: Duration.minutes(10),
         layers: [powerToolsTypeScriptLayer],
+        logGroup: barcodeProductSummaryLogGroup,
         environment: {
           POWERTOOLS_SERVICE_NAME: "food-lens",
           POWERTOOLS_LOG_LEVEL: "DEBUG",
@@ -572,6 +652,10 @@ export class FoodAnalyzerStack extends Stack {
 
     this.productSummary = barcodeProductSummaryFunction;
 
+    const recipeStepByStepLogGroup = new logs.LogGroup(this, "RecipeStepByStepLogGroup", {
+      retention: logs.RetentionDays.ONE_YEAR,
+      encryptionKey: logEncryptionKey,
+    });
     const recipeStepByStepFunction = new nodejs.NodejsFunction(
       this,
       "recipeStepByStepFunction",
@@ -581,6 +665,7 @@ export class FoodAnalyzerStack extends Stack {
         role: basicLambdaRole,
         timeout: Duration.minutes(10),
         layers: [powerToolsTypeScriptLayer],
+        logGroup: recipeStepByStepLogGroup,
         environment: {
           POWERTOOLS_SERVICE_NAME: "food-lens",
           POWERTOOLS_LOG_LEVEL: "DEBUG",
@@ -856,7 +941,8 @@ export class FoodAnalyzerStack extends Stack {
     new s3deploy.BucketDeployment(this, "DeployWebsite", {
       sources: [asset, exportsAsset],
       destinationBucket: hostingBucket,
-      memoryLimit: 512,
+      memoryLimit: 1024,
+      ephemeralStorageSize: cdk.Size.mebibytes(1024),
     });
     
     // Deploy test fridge images to img bucket
@@ -864,7 +950,8 @@ export class FoodAnalyzerStack extends Stack {
       sources: [s3deploy.Source.asset(path.join(__dirname, "..", "img"))],
       destinationBucket: imgBucket,
       destinationKeyPrefix: "img/",
-      memoryLimit: 512,
+      memoryLimit: 1024,
+      ephemeralStorageSize: cdk.Size.mebibytes(1024),
     });
     
     new FoodAnalyzerDashBoard(this, "Dashboard", {
@@ -881,18 +968,17 @@ export class FoodAnalyzerStack extends Stack {
 
 
 
-  const loadDatabase = new LoadDatabase(this, "LoadSF", openFoodFactsProductsTable, this.stackName, accessLogsBucket);
+  const loadDatabase = new LoadDatabase(this, "LoadSF", openFoodFactsProductsTable, this.stackName, accessLogsBucket, logEncryptionKey);
 
     // Enable CloudTrail for audit logging
     const trailBucket = new s3.Bucket(this, 'TrailBucket', {
       enforceSSL: true,
       encryption: s3.BucketEncryption.S3_MANAGED,
+      versioned: true,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       serverAccessLogsBucket: accessLogsBucket,
       serverAccessLogsPrefix: "trail-bucket-logs/",
-      lifecycleRules: [{
-        expiration: Duration.days(90),
-      }],
+      lifecycleRules: [{ expiration: Duration.days(90) }],
     });
 
     const trail = new cloudtrail.Trail(this, 'AuditTrail', {
@@ -913,11 +999,10 @@ export class FoodAnalyzerStack extends Stack {
 
     // Scoped suppressions for CDK-generated wildcard policies we cannot control
     NagSuppressions.addResourceSuppressionsByPath(this, [
-      '/FoodAnalyzer/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C512MiB/ServiceRole/DefaultPolicy/Resource',
+      '/FoodAnalyzer/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C1024MiB1024MiB/ServiceRole/DefaultPolicy/Resource',
       '/FoodAnalyzer/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource',
-      '/FoodAnalyzer/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource',
     ], [
-      { id: 'AwsSolutions-IAM5', reason: 'Wildcard permissions auto-generated by CDK BucketDeployment and LogRetention constructs — not directly controllable' },
+      { id: 'AwsSolutions-IAM5', reason: 'Wildcard permissions auto-generated by CDK BucketDeployment constructs — not directly controllable' },
     ]);
 
     // Suppressions for CDK grant()-generated S3 wildcards and Cognito SMS role
