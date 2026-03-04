@@ -502,7 +502,6 @@ const Preferences: React.FC = () => {
         }}>
           🎯 Personalize Your Shopping
         </h1>
-{/* nosemgrep: jsx-not-internationalized -- Demo app, i18n not required */}
         <p style={{
           color: "rgba(255, 255, 255, 0.95)",
           fontSize: "clamp(0.85rem, 2.5vw, 1rem)",

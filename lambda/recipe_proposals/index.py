@@ -6,6 +6,9 @@ import uuid
 import hashlib
 from botocore.exceptions import ClientError
 from decimal import Decimal
+import urllib.request
+import urllib.parse
+import urllib.error
 import json
 import os
 import re
@@ -89,8 +92,8 @@ def generate_cache_key(ingredients, allergies, preferences, health_goal, religio
     cache_string = json.dumps(cache_data, sort_keys=True)
     
     # Generate hashes
-    ingredients_hash = hashlib.sha256(json.dumps(sorted(ingredients) if ingredients else []).encode()).hexdigest()
-    params_hash = hashlib.sha256(cache_string.encode()).hexdigest()
+    ingredients_hash = hashlib.md5(json.dumps(sorted(ingredients) if ingredients else []).encode()).hexdigest()
+    params_hash = hashlib.md5(cache_string.encode()).hexdigest()
     
     return ingredients_hash, params_hash
 

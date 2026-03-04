@@ -26,7 +26,7 @@ class DecimalEncoder(json.JSONEncoder):
 def generate_image_hash(images_base64):
     """Generate hash from image data for caching"""
     combined = ''.join(sorted(images_base64))
-    return hashlib.sha256(combined.encode()).hexdigest()
+    return hashlib.md5(combined.encode()).hexdigest()
 
 def get_cached_ingredients(image_hash):
     """Retrieve cached ingredients from DynamoDB"""

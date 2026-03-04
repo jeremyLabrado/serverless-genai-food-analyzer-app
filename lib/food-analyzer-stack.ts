@@ -37,8 +37,6 @@ import {
 import { Utils } from "./utils";
 import { NagSuppressions } from "cdk-nag";
 import * as wafv2 from "aws-cdk-lib/aws-wafv2";
-import * as kms from "aws-cdk-lib/aws-kms";
-import * as logs from "aws-cdk-lib/aws-logs";
 
 export class FoodAnalyzerStack extends Stack {
   public userPool: IUserPool;
@@ -189,6 +187,36 @@ export class FoodAnalyzerStack extends Stack {
         },
         billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
         encryption: TableEncryption.DEFAULT,
+        timeToLiveAttribute: "ttl",
+      }
+    );
+
+    const recipeCacheTable = new dynamodb.Table(
+      this,
+      "RecipeCacheTable",
+      {
+        partitionKey: {
+          name: "ingredients_hash",
+          type: dynamodb.AttributeType.STRING,
+        },
+        sortKey: { name: "params_hash", type: dynamodb.AttributeType.STRING },
+        billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+        encryption: TableEncryption.DEFAULT,
+        timeToLiveAttribute: "ttl",
+      }
+    );
+
+    const ingredientCacheTable = new dynamodb.Table(
+      this,
+      "IngredientCacheTable",
+      {
+        partitionKey: {
+          name: "image_hash",
+          type: dynamodb.AttributeType.STRING,
+        },
+        billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+        encryption: TableEncryption.DEFAULT,
+        timeToLiveAttribute: "ttl",
       }
     );
 
@@ -241,21 +269,8 @@ export class FoodAnalyzerStack extends Stack {
       encryption: s3.BucketEncryption.S3_MANAGED,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       objectOwnership: s3.ObjectOwnership.OBJECT_WRITER,
-      versioned: true,
       lifecycleRules: [{ expiration: Duration.days(90) }],
     });
-
-    // KMS key for CloudWatch log encryption
-    const logEncryptionKey = new kms.Key(this, "LogEncryptionKey", {
-      enableKeyRotation: true,
-      description: "KMS key for CloudWatch log group encryption",
-    });
-    logEncryptionKey.addToResourcePolicy(new iam.PolicyStatement({
-      actions: ["kms:Encrypt*", "kms:Decrypt*", "kms:ReEncrypt*", "kms:GenerateDataKey*", "kms:Describe*"],
-      resources: ["*"],
-      principals: [new iam.ServicePrincipal(`logs.${Aws.REGION}.amazonaws.com`)],
-      conditions: { ArnLike: { "kms:EncryptionContext:aws:logs:arn": `arn:aws:logs:${Aws.REGION}:${Aws.ACCOUNT_ID}:*` } },
-    }));
 
     const hostingBucket = new s3.Bucket(this, "HostingBucket", {
       enforceSSL: true,
@@ -269,7 +284,6 @@ export class FoodAnalyzerStack extends Stack {
       }),
       serverAccessLogsBucket: accessLogsBucket,
       serverAccessLogsPrefix: "hosting-logs/",
-      lifecycleRules: [{ noncurrentVersionExpiration: Duration.days(30) }],
     });
 
     const imgBucket = new s3.Bucket(this, "ImgBucket", {
@@ -284,7 +298,6 @@ export class FoodAnalyzerStack extends Stack {
       }),
       serverAccessLogsBucket: accessLogsBucket,
       serverAccessLogsPrefix: "img-logs/",
-      lifecycleRules: [{ noncurrentVersionExpiration: Duration.days(30) }],
     });
 
     const hostingOrigin = origins.S3BucketOrigin.withOriginAccessControl(hostingBucket);
@@ -343,7 +356,6 @@ export class FoodAnalyzerStack extends Stack {
     const cfLogsBucket = new s3.Bucket(this, "CloudFrontLogsBucket", {
       enforceSSL: true,
       encryption: s3.BucketEncryption.S3_MANAGED,
-      versioned: true,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       objectOwnership: s3.ObjectOwnership.OBJECT_WRITER,
       serverAccessLogsBucket: accessLogsBucket,
@@ -365,12 +377,6 @@ export class FoodAnalyzerStack extends Stack {
         "PT", "IE", "LU", "SE", "DK", "FI", "NO", "PL", "CZ", "JP",
         "AU", "CA", "SG", "IN", "BR", "MX", "KR", "IL"
       ),
-      errorResponses: [
-        { httpStatus: 500, ttl: Duration.seconds(0) },
-        { httpStatus: 502, ttl: Duration.seconds(0) },
-        { httpStatus: 503, ttl: Duration.seconds(0) },
-        { httpStatus: 504, ttl: Duration.seconds(0) },
-      ],
       defaultBehavior: {
         origin: hostingOrigin,
         responseHeadersPolicy: myResponseHeadersPolicy,
@@ -420,6 +426,23 @@ export class FoodAnalyzerStack extends Stack {
               "bash", "-c",
               "pip install -r requirements.txt -t /asset-output && cp -au . /asset-output"
             ],
+            local: {
+              tryBundle(outputDir: string) {
+                try {
+                  execSync(
+                    `pip3 install -r requirements.txt -t "${outputDir}" --quiet`,
+                    { cwd: path.join(__dirname, "../lambda/barcode_ingredients"), stdio: "inherit" }
+                  );
+                  Utils.copyDirRecursive(
+                    path.join(__dirname, "../lambda/barcode_ingredients"),
+                    outputDir
+                  );
+                  return true;
+                } catch {
+                  return false;
+                }
+              },
+            },
           },
         }),
         memorySize: 10240,
@@ -951,8 +974,7 @@ export class FoodAnalyzerStack extends Stack {
       sources: [s3deploy.Source.asset(path.join(__dirname, "..", "img"))],
       destinationBucket: imgBucket,
       destinationKeyPrefix: "img/",
-      memoryLimit: 1024,
-      ephemeralStorageSize: cdk.Size.mebibytes(1024),
+      memoryLimit: 512,
     });
     
     new FoodAnalyzerDashBoard(this, "Dashboard", {
@@ -969,17 +991,18 @@ export class FoodAnalyzerStack extends Stack {
 
 
 
-  const loadDatabase = new LoadDatabase(this, "LoadSF", openFoodFactsProductsTable, this.stackName, accessLogsBucket, logEncryptionKey);
+  const loadDatabase = new LoadDatabase(this, "LoadSF", openFoodFactsProductsTable, this.stackName, accessLogsBucket);
 
     // Enable CloudTrail for audit logging
     const trailBucket = new s3.Bucket(this, 'TrailBucket', {
       enforceSSL: true,
       encryption: s3.BucketEncryption.S3_MANAGED,
-      versioned: true,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       serverAccessLogsBucket: accessLogsBucket,
       serverAccessLogsPrefix: "trail-bucket-logs/",
-      lifecycleRules: [{ expiration: Duration.days(90) }],
+      lifecycleRules: [{
+        expiration: Duration.days(90),
+      }],
     });
 
     const trail = new cloudtrail.Trail(this, 'AuditTrail', {
@@ -1000,10 +1023,11 @@ export class FoodAnalyzerStack extends Stack {
 
     // Scoped suppressions for CDK-generated wildcard policies we cannot control
     NagSuppressions.addResourceSuppressionsByPath(this, [
-      '/FoodAnalyzer/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C1024MiB1024MiB/ServiceRole/DefaultPolicy/Resource',
+      '/FoodAnalyzer/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C512MiB/ServiceRole/DefaultPolicy/Resource',
       '/FoodAnalyzer/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource',
+      '/FoodAnalyzer/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource',
     ], [
-      { id: 'AwsSolutions-IAM5', reason: 'Wildcard permissions auto-generated by CDK BucketDeployment constructs — not directly controllable' },
+      { id: 'AwsSolutions-IAM5', reason: 'Wildcard permissions auto-generated by CDK BucketDeployment and LogRetention constructs — not directly controllable' },
     ]);
 
     // Suppressions for CDK grant()-generated S3 wildcards and Cognito SMS role

@@ -23,7 +23,6 @@ export const JourneyProgress: React.FC<JourneyProgressProps> = ({ currentStep })
       boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
       border: "1px solid #e0e0e0",
     }}>
-{/* nosemgrep: jsx-not-internationalized -- Demo app, i18n not required */}
       <div style={{ fontSize: "0.85rem", color: "#666", marginBottom: "12px", fontWeight: "600" }}>
         Your Journey:
       </div>
