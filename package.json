@@ -31,10 +31,12 @@
     "@aws-sdk/util-dynamodb": "3.939.0",
     "@cdklabs/cdk-validator-cfnguard": "0.0.58",
     "aws-cdk-lib": "2.241.0",
-    "aws-lambda": "1.0.6",
     "cdk-nag": "2.37.55",
     "constructs": "10.5.0",
     "react-webcam": "7.2.0",
     "source-map-support": "0.5.21"
+  },
+  "overrides": {
+    "fast-xml-parser": "5.4.1"
   }
 }

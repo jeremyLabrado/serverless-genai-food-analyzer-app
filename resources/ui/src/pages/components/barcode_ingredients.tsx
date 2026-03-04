@@ -330,31 +330,48 @@ const BarcodeIngredients: React.FC<BarcodeIngredientsProps> = ({
                                 ),
                               }))}
                             />
-                          ) : null
-                        }
-                        header={
-                          <Header variant="h2">
-                            {currentTranslations["ingredients_title2"]}
-                          </Header>
-                        }
-                      >
-                        {additives.length > 0 ? (
-                          <p className="hint_font">
-                            {currentTranslations["ingredients_desc_additive"]}
-                          </p>
-                        ) : (
-                          <p>The product does not have additives</p>
-                        )}
-
-                      </Container>
-                    )}
-                  </ColumnLayout>
-                </SpaceBetween>
-
-                <IngredientsSummary
-                  productCode={productCode}
-                  language={language}
-                ></IngredientsSummary>
+                          </SpaceBetween>
+                        </Container>
+                      ),
+                    },
+                    {
+                      label: currentTranslations["tab_additives"],
+                      id: "additives",
+                      content: (
+                        <Container>
+                          <SpaceBetween size="m">
+                            {additives.length > 0 ? (
+                              <>
+                                <p className="hint_font">
+                                  {currentTranslations["ingredients_desc_additive"]}
+                                </p>
+                                <FlowItems
+                                  items={additives.map((item, index) => ({
+                                    id: `${item.id}`,
+                                    content: (
+                                      <Popover
+                                        dismissButton={false}
+                                        position="top"
+                                        size="small"
+                                        triggerType="custom"
+                                        content={item.description}
+                                      >
+                                        <Button>{item.label}</Button>
+                                      </Popover>
+                                    ),
+                                  }))}
+                                />
+                              </>
+                            ) : (
+                              // nosemgrep: jsx-not-internationalized
+                              <p>The product does not have additives</p>
+                            )}
+                          </SpaceBetween>
+                        </Container>
+                      ),
+                    },
+                  ]}
+                />
               </SpaceBetween>
             </div>
           )}

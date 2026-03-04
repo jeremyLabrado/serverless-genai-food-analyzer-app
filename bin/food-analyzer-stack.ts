@@ -13,30 +13,22 @@ const app = new cdk.App({
     new CfnGuardValidator({
       //controlTowerRulesEnabled: false,      
       disabledRules: [
-        'ct-cloudfront-pr-10',  /* OAC not supported in CDK yet https://github.com/aws/aws-cdk/issues/21771 */
-        'ct-cloudfront-pr-4',  /* Demo UI, no need for failover */
-        'ct-cloudfront-pr-5',  /* Demo UI, logging enabled no needed*/
-        'ct-cloudfront-pr-6',  /* Demo UI, no need for custom certificate*/
-        'ct-cloudfront-pr-7',  /* Demo UI, no custom certificate*/
-        'ct-cloudfront-pr-9',  /* Demo UI, no custom certificate*/
-        'ct-dynamodb-pr-1',  /* Temporary data, no need for PITR*/
-        'ct-dynamodb-pr-2',  /* Temporary data, no need for PITR*/
-        'ct-lambda-pr-3',  /* The stack does not contain a VPC*/
-        'ct-s3-pr-10',  /* S3 managed encryption set*/
-        'ct-s3-pr-9',  /* No need for object lock*/
-        'ct-s3-pr-6',  /* No need for lifecycle, only hosting buckets*/
-        'ct-s3-pr-4',  /* No need for event notifications*/
-        'ct-s3-pr-2',  /* No need for server access logging, hosting buckets, demo purposes only*/
-        'ct-s3-pr-11',  /* No need for versioning, hosting buckets, demo purposes only*/
-        'ct-cloudwatch-pr-3', /* no need to encrypted logs, sample code here */
-        'ct-cloudwatch-pr-2', /* no need to retain logs for one year, sample code here */
-        'cloud_trail_encryption_enabled_check', /* Demo app, CloudTrail encryption not required */
-        'cloud_trail_cloud_watch_logs_enabled_check', /* Demo app, CloudTrail CW logs not required */
-        'ct-cloudtrail-pr-1', /* Demo app, CloudTrail KMS encryption not required */
-        'ct-cloudtrail-pr-3', /* Demo app, CloudTrail CloudWatch logs not required */
-        'ct-cloudtrail-pr-4', /* Demo app, CloudTrail CloudWatch logs not required */
-        'kms_create_grant_aws_service_check', /* KMS grant created by CDK for CodeBuild encryption key */
-        'ct-kms-pr-3', /* KMS grant created by CDK for CodeBuild encryption key */
+        'ct-cloudfront-pr-4',  /* Origin failover requires a second S3 origin — single-origin demo app */
+        'ct-cloudfront-pr-6',  /* Custom SSL certificate requires a custom domain + ACM cert */
+        'ct-cloudfront-pr-7',  /* Custom SSL certificate requires a custom domain */
+        'ct-cloudfront-pr-9',  /* Custom SSL certificate requires a custom domain */
+        'ct-lambda-pr-3',  /* Serverless demo app — no VPC deployed */
+        'ct-s3-pr-10',  /* S3-managed encryption used; KMS adds cost with no benefit for public demo assets */
+        'ct-s3-pr-9',  /* Object lock not applicable — hosting and image buckets, not compliance data */
+        'ct-s3-pr-4',  /* S3 event notifications not needed — no downstream event consumers */
+        'ct-s3-pr-2',  /* Access logs bucket cannot log to itself — all other buckets log to this bucket */
+        'cloud_trail_encryption_enabled_check', /* No CloudTrail resource in stack */
+        'cloud_trail_cloud_watch_logs_enabled_check', /* No CloudTrail resource in stack */
+        'ct-cloudtrail-pr-1', /* No CloudTrail resource in stack */
+        'ct-cloudtrail-pr-3', /* No CloudTrail resource in stack */
+        'ct-cloudtrail-pr-4', /* No CloudTrail resource in stack */
+        'kms_create_grant_aws_service_check', /* CDK-generated KMS grant for CodeBuild — not controllable */
+        'ct-kms-pr-3', /* CDK-generated KMS grant for CodeBuild — not controllable */
       ]
     })
   ],
@@ -51,9 +43,6 @@ const foodAnalyzer = new FoodAnalyzerStack(app, `FoodAnalyzer`,  deploymentStage
     account: process.env.CDK_DEFAULT_ACCOUNT
   }
 });
-
-cdk.Tags.of(foodAnalyzer).add("project", "foodAnalyzer");
-cdk.Tags.of(foodAnalyzer).add("stage", deploymentStage);
 
 Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
 

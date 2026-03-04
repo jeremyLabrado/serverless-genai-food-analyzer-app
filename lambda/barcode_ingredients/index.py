@@ -10,7 +10,6 @@ import re
 import defusedxml.ElementTree as ET
 from aws_lambda_powertools import Logger, Tracer
 from typing import Dict, List, Optional, Tuple, Union, Any
-import re
 
 tracer = Tracer()
 logger = Logger()
@@ -361,7 +360,7 @@ def get_product_from_db(product_code, language):
         else:
             return None, None, None, None, None, None, None, None, None, None, None, None, None
     except Exception as e:
-        logger.error("Error while getting the Product from database", e)
+        logger.error("Error while getting the Product from database: %s", e)
         return None, None, None, None, None, None, None, None, None, None, None, None, None
 
 @tracer.capture_method
@@ -449,7 +448,7 @@ def write_product_to_db(product_code, language, product_name, ingredients, addit
             logger.warning("Product write returned non-200 status: %s", response['ResponseMetadata']['HTTPStatusCode'])
 
     except Exception as e:
-        logger.error("Error while saving the Product into database", e)
+        logger.warning("Error while saving the Product into database: %s", e)
         raise
 
 
@@ -515,8 +514,28 @@ def fetch_new_product(product_code, language):
         image_small_url=None
         image_thumb_url=None
         
-        if 'product' not in response_data or 'ingredients_text' not in response_data['product']:
-            raise ValueError("Missing ingredients in Open Food Facts API. Unable to generate a personalized summary for this product.")
+        if 'product' not in response_data:
+            raise ValueError("Product not found in Open Food Facts database.")
+
+        product = response_data['product']
+        product_name = product.get('product_name', 'Unknown')
+        ingredients = product.get('ingredients_text', '')
+
+        # Extract metadata even if no ingredients
+        if 'allergens_tags' in product:
+            allergens = product['allergens_tags']
+        if 'nutriments' in product:
+            nutriments = filter_nutriments(product['nutriments'])
+        if 'labels_tags' in product:
+            labels = product['labels_tags']
+        if 'categories' in product:
+            categories = product['categories']
+        nova_group = product.get('nova_group')
+        nutriscore_grade = product.get('nutriscore_grade')
+        ecoscore_grade = product.get('ecoscore_grade')
+        brands = product.get('brands')
+        image_small_url = product.get('image_small_url')
+        image_thumb_url = product.get('image_thumb_url')
 
         if not ingredients:
             # Return product metadata with a friendly message instead of an error
@@ -531,42 +550,6 @@ def fetch_new_product(product_code, language):
         response_additives = additives
         if additives:
             response_additives = parse_additives_description(additives, language)
-            
-        # Extract allergens
-        if 'product' in response_data and 'allergens_tags' in response_data['product']:
-            allergens = response_data['product']['allergens_tags']
-            
-        # Extract and filter nutriments
-        if 'product' in response_data and 'nutriments' in response_data['product']:
-            nutriments = filter_nutriments(response_data['product']['nutriments'])
-            
-        # Extract labels
-        if 'product' in response_data and 'labels_tags' in response_data['product']:
-            labels = response_data['product']['labels_tags']
-            
-        # Extract categories
-        if 'product' in response_data and 'categories' in response_data['product']:
-            categories = response_data['product']['categories']
-            
-        # Extract quality indicators
-        if 'product' in response_data and 'nova_group' in response_data['product']:
-            nova_group = response_data['product']['nova_group']
-            
-        if 'product' in response_data and 'nutriscore_grade' in response_data['product']:
-            nutriscore_grade = response_data['product']['nutriscore_grade']
-            
-        if 'product' in response_data and 'ecoscore_grade' in response_data['product']:
-            ecoscore_grade = response_data['product']['ecoscore_grade']
-            
-        if 'product' in response_data and 'brands' in response_data['product']:
-            brands = response_data['product']['brands']
-            
-        # Extract image URLs
-        if 'product' in response_data and 'image_small_url' in response_data['product']:
-            image_small_url = response_data['product']['image_small_url']
-            
-        if 'product' in response_data and 'image_thumb_url' in response_data['product']:
-            image_thumb_url = response_data['product']['image_thumb_url']
 
         return response_ingredients, response_additives, product_name, allergens, nutriments, labels, categories, nova_group, nutriscore_grade, ecoscore_grade, brands, image_small_url, image_thumb_url
 
