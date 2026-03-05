@@ -18,7 +18,7 @@ import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 
 export class LoadDatabase extends Construct {
-  constructor(scope: Construct, id: string, tableToLoad: dynamodb.Table, stackName: string, accessLogsBucket?: s3.IBucket) {
+  constructor(scope: Construct, id: string, tableToLoad: dynamodb.Table, stackName: string, accessLogsBucket?: s3.IBucket, logEncryptionKey?: kms.IKey) {
     super(scope, id);
 
     const loadSourceCode = new s3.Bucket(this, "LoadSourceCode", {
@@ -35,6 +35,7 @@ export class LoadDatabase extends Construct {
         serverAccessLogsBucket: accessLogsBucket,
         serverAccessLogsPrefix: "load-source-logs/",
       }),
+      lifecycleRules: [{ noncurrentVersionExpiration: Duration.days(30) }],
     });
 
     const codeBuildKey = new kms.Key(this, "CodeBuildKey", {

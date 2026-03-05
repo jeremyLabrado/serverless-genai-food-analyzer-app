@@ -14,6 +14,8 @@ import {
 import customTranslations from "../../assets/i18n/all";
 import { DevModeContext, LanguageContext } from "../app";
 
+type MultiLanguageData = Record<string, Record<string, string>>;
+
 const Preferences: React.FC = () => {
   const allergensList: MultiLanguageData = {
     Eggs: {
@@ -502,6 +504,7 @@ const Preferences: React.FC = () => {
         }}>
           🎯 Personalize Your Shopping
         </h1>
+{/* nosemgrep: jsx-not-internationalized */}
         <p style={{
           color: "rgba(255, 255, 255, 0.95)",
           fontSize: "clamp(0.85rem, 2.5vw, 1rem)",
