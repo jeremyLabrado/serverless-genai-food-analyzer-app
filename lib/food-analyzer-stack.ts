@@ -37,6 +37,8 @@ import {
 import { Utils } from "./utils";
 import { NagSuppressions } from "cdk-nag";
 import * as wafv2 from "aws-cdk-lib/aws-wafv2";
+import * as kms from "aws-cdk-lib/aws-kms";
+import * as logs from "aws-cdk-lib/aws-logs";
 
 export class FoodAnalyzerStack extends Stack {
   public userPool: IUserPool;
@@ -192,6 +194,18 @@ export class FoodAnalyzerStack extends Stack {
       lifecycleRules: [{ expiration: Duration.days(90) }],
     });
 
+    // KMS key for CloudWatch log encryption
+    const logEncryptionKey = new kms.Key(this, "LogEncryptionKey", {
+      enableKeyRotation: true,
+      description: "KMS key for CloudWatch log group encryption",
+    });
+    logEncryptionKey.addToResourcePolicy(new iam.PolicyStatement({
+      actions: ["kms:Encrypt*", "kms:Decrypt*", "kms:ReEncrypt*", "kms:GenerateDataKey*", "kms:Describe*"],
+      resources: ["*"],
+      principals: [new iam.ServicePrincipal(`logs.${Aws.REGION}.amazonaws.com`)],
+      conditions: { ArnLike: { "kms:EncryptionContext:aws:logs:arn": `arn:aws:logs:${Aws.REGION}:${Aws.ACCOUNT_ID}:*` } },
+    }));
+
     const hostingBucket = new s3.Bucket(this, "HostingBucket", {
       enforceSSL: true,
       encryption: s3.BucketEncryption.S3_MANAGED,
@@ -204,6 +218,7 @@ export class FoodAnalyzerStack extends Stack {
       }),
       serverAccessLogsBucket: accessLogsBucket,
       serverAccessLogsPrefix: "hosting-logs/",
+      lifecycleRules: [{ noncurrentVersionExpiration: Duration.days(30) }],
     });
 
     const imgBucket = new s3.Bucket(this, "ImgBucket", {
@@ -218,6 +233,7 @@ export class FoodAnalyzerStack extends Stack {
       }),
       serverAccessLogsBucket: accessLogsBucket,
       serverAccessLogsPrefix: "img-logs/",
+      lifecycleRules: [{ noncurrentVersionExpiration: Duration.days(30) }],
     });
 
     const hostingOrigin = origins.S3BucketOrigin.withOriginAccessControl(hostingBucket);
