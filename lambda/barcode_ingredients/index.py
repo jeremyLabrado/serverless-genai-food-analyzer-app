@@ -281,7 +281,7 @@ def parse_ingredients_description(ingredients, language):
         return ingredients_and_descriptions
 
     except Exception as e:
-        logger.error("Impossible to generate ingrediens descriptions: %s", e)
+        logger.warning("Impossible to generate ingrediens descriptions: %s: %s", e)
         return None
     
 
@@ -310,7 +310,7 @@ def parse_additives_description(additives, language):
         
         return additives_and_descriptions
     except Exception as e:
-        logger.error("Impossible to generate additives descriptions: %s", e)
+        logger.warning("Impossible to generate additives descriptions: %s: %s", e)
         return None
 
 @tracer.capture_method
@@ -360,7 +360,7 @@ def get_product_from_db(product_code, language):
         else:
             return None, None, None, None, None, None, None, None, None, None, None, None, None
     except Exception as e:
-        logger.error("Error while getting the Product from database: %s", e)
+        logger.warning("Error while getting the Product from database: %s: %s", e)
         return None, None, None, None, None, None, None, None, None, None, None, None, None
 
 @tracer.capture_method
@@ -448,7 +448,7 @@ def write_product_to_db(product_code, language, product_name, ingredients, addit
             logger.warning("Product write returned non-200 status: %s", response['ResponseMetadata']['HTTPStatusCode'])
 
     except Exception as e:
-        logger.error("Error while saving the Product into database", e)
+        logger.warning("Error while saving the Product into database: %s", e)
         raise
 
 
@@ -479,7 +479,7 @@ def get_product_from_open_food_facts_db(product_code):
         else:
             return None
     except Exception as e:
-        logger.error("Error while getting the Product from get_product_from_open_food_facts_db table: %s", e)
+        logger.warning("Error while getting the Product from get_product_from_open_food_facts_db table: %s: %s", e)
         return None
     
 def fetch_new_product(product_code, language):
@@ -622,7 +622,7 @@ def handler(event, context):
         }
 
     except Exception as e:
-            logger.error("Error: %s", e)
+            logger.warning("Error: %s: %s", e)
             return {
             "statusCode": 500,
             "body": json.dumps({"error": str(e)}),

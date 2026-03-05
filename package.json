@@ -36,5 +36,8 @@
     "constructs": "10.5.0",
     "react-webcam": "7.2.0",
     "source-map-support": "0.5.21"
+  },
+  "overrides": {
+    "fast-xml-parser": "5.4.1"
   }
 }
