@@ -1,6 +1,6 @@
 const customTranslations: Record<string, Record<string, string>> = {
   english: {
-    home_title: "Snap your fridge, find the perfect recipe, and order missing ingredients in 1 click",
+    home_title: "Food analyzer app is a personalized GenAI nutritional application for your shopping and cooking recipes",
     home_subtitle: "Choose an option from the list to test out",
     lang_label: "English",
     menu_history: "History",
@@ -114,7 +114,7 @@ const customTranslations: Record<string, Record<string, string>> = {
     equipment_foodprocessor: "Food Processor",
   },
   french: {
-    home_title: "Photographiez votre frigo, trouvez la recette parfaite et commandez en 1 clic",
+    home_title: "L'application Food Analyzer est une application nutritionnelle personnalisée GenAI pour vos achats et vos recettes de cuisine",
     home_subtitle: "Choisissez une option dans la liste pour tester",
     lang_label: "Français",
     menu_history: "Historique",
@@ -232,7 +232,7 @@ const customTranslations: Record<string, Record<string, string>> = {
     equipment_foodprocessor: "Robot culinaire",
   },
   italian: {
-    home_title: "Fotografa il tuo frigo, trova la ricetta perfetta e ordina gli ingredienti mancanti in 1 clic",
+    home_title: "Food Analyzer è un'app nutrizionale personalizzata GenAI per i tuoi acquisti e le tue ricette di cucina",
     home_subtitle: "Scegli un'opzione dalla lista per testarla",
     lang_label: "Italiano",
     menu_history: "Cronologia",
@@ -351,7 +351,7 @@ const customTranslations: Record<string, Record<string, string>> = {
     equipment_foodprocessor: "Robot da cucina",
   },
   spanish: {
-    home_title: "Fotografía tu nevera, encuentra la receta perfecta y pide los ingredientes que faltan en 1 clic",
+    home_title: "La aplicación Food Analyzer es una aplicación nutricional personalizada GenAI para tus compras y recetas de cocina",
     home_subtitle: "Elige una opción de la lista para probarla",
     lang_label: "Español",
     menu_history: "Historia",
@@ -502,6 +502,11 @@ arabic:{
     "ingredients_desc_ingredient": "انقر على كل مكون لعرض الوصف التفصيلي الناتج عن الذكاء الاصطناعي",
     "ingredients_desc_additive": "انقر على كل إضافة لعرض الوصف التفصيلي الناتج عن الذكاء الاصطناعي",
     "ingredients_no_additive": "المنتج لا يحتوي على إضافات",
+    "tab_ai_summary": "ملخص الذكاء الاصطناعي",
+    "tab_ingredients": "المكونات",
+    "tab_additives": "الإضافات",
+    "allergen_warning_title": "تحذير من مسببات الحساسية",
+    "allergen_warning_message": "يحتوي هذا المنتج على مسببات حساسية تؤثر عليك:",
     "summary_title": "ملخص المكونات الناتجة عن الذكاء الاصطناعي",
     "summary_benefits_title": "الفوائد",
     "summary_disadvantages_title": "العيوب",
@@ -513,6 +518,10 @@ arabic:{
     "preference_other_placeholder": "أريد أن أتناول طعامًا صحيًا",
     "recipe_retake_photo": "التقط صورة جديدة",
     "recipe_use_this": "استخدم الصورة المحددة",
+    "recipe_add_image": "أضف إلى المجموعة",
+    "recipe_add_more": "أضف المزيد من الصور",
+    "recipe_captured_images": "الصور الملتقطة",
+    "recipe_generate_recipes": "إنشاء الوصفات",
     "recipe_search_video_src": "جارٍ البحث عن أجهزة الفيديو ...",
     "recipe_take_picture": "التقط صورة",
     "image_ingredients_loading": "جارٍ تحديد المكونات في الصورة...",

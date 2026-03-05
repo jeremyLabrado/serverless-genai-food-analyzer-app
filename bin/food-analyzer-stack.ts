@@ -52,6 +52,9 @@ const foodAnalyzer = new FoodAnalyzerStack(app, `FoodAnalyzer`,  deploymentStage
   }
 });
 
+cdk.Tags.of(foodAnalyzer).add("project", "foodAnalyzer");
+cdk.Tags.of(foodAnalyzer).add("stage", deploymentStage);
+
 Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
 
 

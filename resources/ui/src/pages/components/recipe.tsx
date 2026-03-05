@@ -233,6 +233,8 @@ function resizeBase64Image(base64Image: string, width: number, height: number): 
         image.onload = () => {
           const resizedImage = resizeImage(image, 400, 400);
           setImgSrc(resizedImage ?? null);
+          //console.log("resizedImage base 64");
+          //console.log(resizedImage);
           setShowOptionsButtons(true);
         };
       };

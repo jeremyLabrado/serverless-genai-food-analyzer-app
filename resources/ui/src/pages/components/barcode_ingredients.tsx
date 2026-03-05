@@ -368,7 +368,6 @@ const BarcodeIngredients: React.FC<BarcodeIngredientsProps> = ({
                                 />
                               </>
                             ) : (
-                              // nosemgrep: jsx-not-internationalized
                               <p>The product does not have additives</p>
                             )}
                           </SpaceBetween>

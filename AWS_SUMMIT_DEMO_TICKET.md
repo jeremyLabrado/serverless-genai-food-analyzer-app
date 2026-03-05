@@ -1,9 +1,5 @@
 # AWS Summit 2026 Demo Ticket
 
-<p align="center">
-  <img src="img/logo.png" alt="Smart Groceries Logo" width="150">
-</p>
-
 ## 1. Demo Title
 
 **The Future of Grocery Shopping with GenAI**

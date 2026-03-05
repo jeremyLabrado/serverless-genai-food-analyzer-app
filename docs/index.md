@@ -1,9 +1,5 @@
 # Technical Documentation Index
 
-<p align="center">
-  <img src="../img/logo.png" alt="Smart Groceries Logo" width="150">
-</p>
-
 ## Overview
 
 This directory contains technical documentation for the Recipe-First Shopping Assistant.

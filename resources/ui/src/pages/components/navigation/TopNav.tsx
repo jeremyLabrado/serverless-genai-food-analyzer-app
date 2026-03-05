@@ -31,11 +31,7 @@ const TopNav = ({
     <TopNavigation
       identity={{
         href: "#",
-        title: "Smart Groceries",
-        logo: {
-          src: "/icons/logo_aws.png",
-          alt: "Smart Groceries",
-        },
+        title: "Food Analyzer",
         onFollow: () => navigate("/"),
       }}
       utilities={[

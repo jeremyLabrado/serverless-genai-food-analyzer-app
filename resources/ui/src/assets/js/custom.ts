@@ -32,15 +32,8 @@ export async function callAPI(resource: string, method: string = "GET", body: an
       headers,
       body: body ? JSON.stringify(body) : null,
     });
-    if (!response.ok) {
-      return { error: `Request failed (${response.status})` };
-    }
-    const text = await response.text();
-    try {
-      return JSON.parse(text);
-    } catch {
-      return { error: `Invalid response from server` };
-    }
+    const data = await response.json();
+    return data;
   } catch (error) {
     throw error;
   }

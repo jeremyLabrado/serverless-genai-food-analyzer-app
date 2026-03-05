@@ -27,7 +27,7 @@ export function Home() {
             color: "#333",
             margin: "0",
           }}>
-            🛒 {currentTranslations.home_title || "Welcome!"}
+            👋 {currentTranslations.home_title || "Welcome!"}
           </h2>
         </div>
 
