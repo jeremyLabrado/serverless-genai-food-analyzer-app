@@ -165,6 +165,7 @@ const Barcode: React.FC = () => {
                     value={tempProductCode}
                     onChange={({ detail }) => setTempProductCode(detail.value)}
                   />
+{/* nosemgrep: jsx-not-internationalized -- Demo app, i18n not required */}
                   <Button onClick={() => setProductCode(tempProductCode)}>
                     OK
                   </Button>
@@ -210,6 +211,7 @@ const Barcode: React.FC = () => {
                 header="Set your preferences first"
               >
                 To get personalized nutritional information, please{" "}
+{/* nosemgrep: jsx-not-internationalized -- Demo app, i18n not required */}
                 <Link href="/preference">set your preferences</Link> before scanning.
               </Alert>
             )}
