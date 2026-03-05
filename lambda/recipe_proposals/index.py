@@ -1,0 +1,363 @@
+import time
+import boto3
+import base64
+import json
+import uuid
+import hashlib
+from botocore.exceptions import ClientError
+from decimal import Decimal
+import urllib.request
+import urllib.parse
+import urllib.error
+import json
+import os
+import re
+from aws_lambda_powertools import Logger, Tracer
+import concurrent.futures
+from functools import partial
+
+
+
+bedrock_rt = boto3.client("bedrock-runtime")
+s3 = boto3.client('s3')
+dynamodb = boto3.resource('dynamodb')
+
+S3_BUCKET_NAME = os.environ['S3_BUCKET_NAME']
+RECIPE_CACHE_TABLE_NAME = os.environ.get('RECIPE_CACHE_TABLE_NAME')
+
+tracer = Tracer()
+logger = Logger()
+
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super(DecimalEncoder, self).default(obj)
+
+def call_bedrock_thread(prompt, model_id, accept, content_type):
+    body=json.dumps({
+        "taskType": "TEXT_IMAGE",
+        "textToImageParams": {
+            "text": f"Professional food photography of {prompt}, styled for cookbook, natural lighting, shallow depth of field, appetizing presentation on elegant plate, high resolution, culinary magazine quality",
+            "negativeText": "text, words, letters, labels, writing, typography, captions, watermarks, logos, signs, numbers, alphabet"
+        },
+        "imageGenerationConfig": {
+            "numberOfImages": 1,
+            "quality": "premium",
+            "height": 1024,
+            "width": 1024,
+            "cfgScale": 8.0,
+            "seed": 0
+        }
+    })
+
+    response = bedrock_rt.invoke_model(
+        body=body,
+        modelId=model_id,
+        accept=accept,
+        contentType=content_type,
+        performanceConfigLatency='standard',
+    )
+    response_body = json.loads(response.get("body").read())
+    base64_image = response_body.get("images")[0]
+    return base64_image
+
+def upload_image_to_s3(image_bytes):
+    list_url_s3=[]
+    for image in image_bytes:
+        image_data=base64.b64decode(image)
+        # Generate a random filename using UUID
+        file_name = str(uuid.uuid4()) + ".jpg"
+        s3_key = "img/" + file_name
+        s3.put_object(Body=image_data, Bucket=S3_BUCKET_NAME, Key=s3_key)
+        list_url_s3.append(f"img/{file_name}")
+        logger.debug("Uploaded image: {}".format(file_name))
+
+    return list_url_s3
+
+def generate_cache_key(ingredients, allergies, preferences, health_goal, religion, disliked_ingredients, favorite_cuisines, language):
+    """Generate hash key for caching based on all input parameters"""
+    cache_data = {
+        "ingredients": sorted(ingredients) if ingredients else [],
+        "allergies": sorted(allergies) if allergies else [],
+        "preferences": sorted(preferences) if preferences else [],
+        "health_goal": health_goal or "",
+        "religion": religion or "",
+        "disliked_ingredients": sorted(disliked_ingredients) if disliked_ingredients else [],
+        "favorite_cuisines": sorted(favorite_cuisines) if favorite_cuisines else [],
+        "language": language
+    }
+    cache_string = json.dumps(cache_data, sort_keys=True)
+    
+    # Generate hashes
+    ingredients_hash = hashlib.md5(json.dumps(sorted(ingredients) if ingredients else []).encode()).hexdigest()
+    params_hash = hashlib.md5(cache_string.encode()).hexdigest()
+    
+    return ingredients_hash, params_hash
+
+def get_cached_recipes(ingredients_hash, params_hash):
+    """Retrieve cached recipes from DynamoDB"""
+    if not RECIPE_CACHE_TABLE_NAME:
+        return None
+    
+    try:
+        table = dynamodb.Table(RECIPE_CACHE_TABLE_NAME)
+        response = table.get_item(
+            Key={
+                'ingredients_hash': ingredients_hash,
+                'params_hash': params_hash
+            }
+        )
+        
+        if 'Item' in response:
+            logger.info("Cache hit for recipe generation")
+            return json.loads(response['Item']['recipes'], parse_float=Decimal)
+        else:
+            logger.info("Cache miss for recipe generation")
+            return None
+    except Exception as e:
+        logger.error(f"Error retrieving from cache: {e}")
+        return None
+
+def save_recipes_to_cache(ingredients_hash, params_hash, recipes):
+    """Save generated recipes to DynamoDB cache"""
+    if not RECIPE_CACHE_TABLE_NAME:
+        return
+    
+    try:
+        table = dynamodb.Table(RECIPE_CACHE_TABLE_NAME)
+        table.put_item(
+            Item={
+                'ingredients_hash': ingredients_hash,
+                'params_hash': params_hash,
+                'recipes': json.dumps(recipes, cls=DecimalEncoder),
+                'timestamp': int(time.time()),
+                'ttl': int(time.time()) + 86400 * 30  # 30 days
+            }
+        )
+        logger.info("Recipes saved to cache")
+    except Exception as e:
+        logger.error(f"Error saving to cache: {e}")
+
+def generate_images_recipes(prompt_list:list):
+    """
+    Generate an image using SDXL 1.0 on demand.
+    Args:
+        model_id (str): The model ID to use.
+        body (str) : The request body to use.
+    Returns:
+        image_bytes (bytes): The image generated by the model.
+    """
+   
+    accept = "application/json"
+    content_type = "application/json"
+    model_id = 'amazon.nova-canvas-v1:0'
+    
+    partial_generate_image = partial(
+        call_bedrock_thread,
+        model_id=model_id,
+        accept=accept,
+        content_type=content_type
+    )
+
+    logger.debug(f"Generating images with Nova Canvas model {model_id}")
+    
+    
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        # Use executor.map to apply the function to each prompt concurrently
+        results = executor.map(partial_generate_image, prompt_list)
+        #Store the results in the result_list
+        result_lits=[base64_image for base64_image in results]
+    
+    return result_lits
+
+def post_process_answer(response:str)->list:
+    """
+    Extracts the answer from the given response string.
+
+    Args:
+        response (str): The response string.
+
+    Returns:
+        dict: list of recipes.
+    """
+    answer = re.findall(r'<answer>(.*?)</answer>', response, re.DOTALL)
+    raw = answer[0].strip()
+    raw = re.sub(r'^```(?:json)?\s*', '', raw)
+    raw = re.sub(r'\s*```$', '', raw)
+    json_answer = json.loads(raw)
+    return json_answer
+    
+def generate_answer(prompt:str, model_id:str, claude_config:dict,system_prompt:str, post_process:bool)->str:
+    
+    message={'messages': [{"role": "user", "content": prompt},
+                          {"role": "assistant", "content": "The answer is"}]}
+    
+    body={**message,**claude_config, "system": system_prompt}
+    response = bedrock_rt.invoke_model(
+        modelId=model_id,
+        body=json.dumps(body),
+        performanceConfigLatency='standard'
+    )
+    response = json.loads(response['body'].read().decode('utf-8'))
+    if post_process:
+        formated_response= post_process_answer(response['content'][0]['text'])
+    else:
+        formated_response= response['content'][0]['text']
+        
+    return formated_response
+    
+
+@logger.inject_lambda_context(log_event=True)
+def handler(event, context):
+    
+       #-----for prod-----
+
+    body = event.get("body")
+    json_body = json.loads(body)
+    
+    language = json_body.get("language")
+    ingredients = json_body.get("ingredients")
+    allergies = json_body.get("allergies")
+    preferences = json_body.get("preferences")
+    health_goal = json_body.get("healthGoal")
+    religion = json_body.get("religion")
+    disliked_ingredients = json_body.get("dislikedIngredients", [])
+    favorite_cuisines = json_body.get("favoriteCuisines", [])
+    recipe_context = json_body.get("recipeContext", {})
+    
+    # Generate cache keys
+    ingredients_hash, params_hash = generate_cache_key(
+        ingredients, allergies, preferences, health_goal, 
+        religion, disliked_ingredients, favorite_cuisines, language
+    )
+    
+    # Check cache first
+    cached_recipes = get_cached_recipes(ingredients_hash, params_hash)
+    if cached_recipes:
+        logger.info("Returning cached recipes")
+        return {
+            'statusCode': 200,
+            'body': json.dumps({'recipes': cached_recipes}, cls=DecimalEncoder),
+            'headers': {
+                'Content-Type': 'application/json',
+                'Access-Control-Allow-Origin': '*'
+            }
+        }
+    
+    logger.info("Cache miss - generating new recipes")
+    
+    model_id = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+    claude_config = {
+        'max_tokens': 2000, 
+        'temperature': 0, 
+        'anthropic_version': '',  
+        'stop_sequences': ['Human:']
+    }
+    
+    system_prompt="Your task is to generate personalized recipe ideas based on the user's input of available ingredients and dietary preferences. Use this information to suggest a variety of creative and delicious recipes that can be made using the given ingredients while accommodating the user's dietary needs, health goals, religious requirements, taste preferences, and favorite cuisines. For each recipe, provide a brief description, a list of required ingredients, and a simple set of instructions. Ensure that the recipes are easy to follow, nutritious, and can be prepared with minimal additional ingredients or equipment."
+    
+    # Build constraint strings
+    allergy_constraint = f"Ensure there is no {allergies} in the recipe." if allergies else ""
+    disliked_constraint = f"Avoid using these disliked ingredients: {disliked_ingredients}." if disliked_ingredients else ""
+    religion_constraint = f"Recipe must comply with {religion} dietary laws." if religion and religion != "none" else ""
+    health_goal_constraint = f"Recipe should align with health goal: {health_goal}." if health_goal else ""
+    cuisine_preference = f"Prefer cuisines: {favorite_cuisines}." if favorite_cuisines else ""
+    
+    # Recipe context constraints
+    time_constraint = f"Total cooking time (prep + cook) must not exceed {recipe_context.get('time', 30)} minutes." if recipe_context.get('time') else ""
+    people_constraint = f"Recipe must serve {recipe_context.get('people', 4)} people." if recipe_context.get('people') else ""
+    
+    equipment_list = recipe_context.get('equipment', [])
+    if equipment_list and len(equipment_list) > 0:
+        equipment_names = ', '.join([e.get('value', e) if isinstance(e, dict) else e for e in equipment_list])
+        equipment_constraint = f"Use only these equipment: {equipment_names}."
+    else:
+        equipment_constraint = ""
+    
+    budget_constraint = f"Keep ingredient cost under ${recipe_context.get('budget', 10)} per person." if recipe_context.get('budget') else ""
+    
+    # nosemgrep
+    prompt="""
+    Create maximum 3 recipes (easy, medium, hard) based on my ingredients, preferences, and constraints:
+    
+    Available ingredients: %s
+    Allergies: %s
+    Dietary preferences: %s
+    Health goal: %s
+    Religious requirements: %s
+    Disliked ingredients: %s
+    Favorite cuisines: %s
+    
+    RECIPE CONTEXT:
+    - Cooking time limit: %s minutes
+    - Servings: %s people
+    - Equipment: %s
+    - Budget per person: $%s
+    
+    CONSTRAINTS:
+    - %s
+    - %s
+    - %s
+    - %s
+    - %s
+    - %s
+    - %s
+    - %s
+    - %s
+    - Optional ingredients are common ingredients that can be added to the recipe like salt, pepper, olive oil, etc. but MUST NOT contain ingredients in the allergies or disliked list.
+    - The "ingredients" key should only contain ingredients from %s.
+
+    Output the recipe in the following language %s as JSON, following the format, keys of JSON stays in English:
+    ```json
+    "recipes": [
+        {
+        "recipe_title": "Succulent Grilled Cheese Sandwich",
+        "description": "Un classique réconfortant et savoureux, parfait pour un repas rapide.",
+        "difficulty": "facile",
+        "ingredients": %s
+        "optional_ingredients": ["ingredient1", "ingredient2"],
+        "preparation_time": 5,
+        "cooking_time": 6
+        },
+        {
+        "recipe_title": "Délicieuse Spaghetti Carbonara",
+        "description": "Des spaghettis crémeuses enrobées d'une sauce aux œufs, parmesan et lardons croustillants.",
+        "ingredients": %s,
+        "optional_ingredients": ["ingredient1", "ingredient2"],
+        "difficulty": "moyen",
+        "preparation_time": 10,
+        "cooking_time": 15
+        }
+    ]
+    }
+    ```
+    
+    Before answer think step by step in <thinking> tags and analyze all rules. Answer must be inside <answer></answer> tags."
+    """%(ingredients, allergies, preferences, health_goal, religion, disliked_ingredients, favorite_cuisines,
+         recipe_context.get('time', 30), recipe_context.get('people', 4), recipe_context.get('equipment', 'all'), recipe_context.get('budget', 10),
+         allergy_constraint, disliked_constraint, religion_constraint, health_goal_constraint, cuisine_preference,
+         time_constraint, people_constraint, equipment_constraint, budget_constraint,
+         ingredients, language, ingredients, ingredients)
+    response=generate_answer( prompt, model_id, claude_config,system_prompt,post_process=True)
+    prompt_images=[f"{recipee['recipe_title']}.{recipee['description']}" for recipee in response['recipes']]
+    image_data=generate_images_recipes(prompt_images)
+    # Upload images to S3
+    list_url_s3=upload_image_to_s3(image_data)
+    for i,recipee in enumerate(response['recipes']):
+        recipee['recipe_id']=f"{uuid.uuid4()}"
+        recipee['image_url']=f"/{list_url_s3[i]}"
+    
+    # Save to cache
+    save_recipes_to_cache(ingredients_hash, params_hash, response['recipes'])
+
+    # Return JSON response
+    return {
+        "statusCode": 200,
+        "body": json.dumps(response, ensure_ascii=False),
+        "headers": {
+            "Access-Control-Allow-Headers": "*",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
+        },
+    }
