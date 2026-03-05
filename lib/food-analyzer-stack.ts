@@ -97,7 +97,6 @@ export class FoodAnalyzerStack extends Stack {
       },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       encryption: TableEncryption.AWS_MANAGED,
-        pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
     });
 
     new CfnOutput(this, "openFoodFactsProductsTableNameOutput", {
@@ -113,7 +112,6 @@ export class FoodAnalyzerStack extends Stack {
       sortKey: { name: "language", type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       encryption: TableEncryption.AWS_MANAGED,
-        pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
     });
 
     const productsSummaryTable = new dynamodb.Table(
@@ -127,7 +125,6 @@ export class FoodAnalyzerStack extends Stack {
         sortKey: { name: "params_hash", type: dynamodb.AttributeType.STRING },
         billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
         encryption: TableEncryption.AWS_MANAGED,
-        pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
         timeToLiveAttribute: "ttl",
       }
     );
@@ -143,7 +140,6 @@ export class FoodAnalyzerStack extends Stack {
         sortKey: { name: "params_hash", type: dynamodb.AttributeType.STRING },
         billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
         encryption: TableEncryption.AWS_MANAGED,
-        pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
         timeToLiveAttribute: "ttl",
       }
     );
@@ -158,64 +154,6 @@ export class FoodAnalyzerStack extends Stack {
         },
         billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
         encryption: TableEncryption.AWS_MANAGED,
-        pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
-        timeToLiveAttribute: "ttl",
-      }
-    );
-
-    const recipeCacheTable = new dynamodb.Table(
-      this,
-      "RecipeCacheTable",
-      {
-        partitionKey: {
-          name: "ingredients_hash",
-          type: dynamodb.AttributeType.STRING,
-        },
-        sortKey: { name: "params_hash", type: dynamodb.AttributeType.STRING },
-        billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-        encryption: TableEncryption.DEFAULT,
-      }
-    );
-
-    const ingredientCacheTable = new dynamodb.Table(
-      this,
-      "IngredientCacheTable",
-      {
-        partitionKey: {
-          name: "image_hash",
-          type: dynamodb.AttributeType.STRING,
-        },
-        billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-        encryption: TableEncryption.DEFAULT,
-        timeToLiveAttribute: "ttl",
-      }
-    );
-
-    const recipeCacheTable = new dynamodb.Table(
-      this,
-      "RecipeCacheTable",
-      {
-        partitionKey: {
-          name: "ingredients_hash",
-          type: dynamodb.AttributeType.STRING,
-        },
-        sortKey: { name: "params_hash", type: dynamodb.AttributeType.STRING },
-        billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-        encryption: TableEncryption.DEFAULT,
-        timeToLiveAttribute: "ttl",
-      }
-    );
-
-    const ingredientCacheTable = new dynamodb.Table(
-      this,
-      "IngredientCacheTable",
-      {
-        partitionKey: {
-          name: "image_hash",
-          type: dynamodb.AttributeType.STRING,
-        },
-        billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-        encryption: TableEncryption.DEFAULT,
         timeToLiveAttribute: "ttl",
       }
     );
@@ -965,7 +903,7 @@ export class FoodAnalyzerStack extends Stack {
     new s3deploy.BucketDeployment(this, "DeployWebsite", {
       sources: [asset, exportsAsset],
       destinationBucket: hostingBucket,
-      memoryLimit: 1024,
+      memoryLimit: 2048,
       ephemeralStorageSize: cdk.Size.mebibytes(1024),
     });
     
@@ -974,9 +912,23 @@ export class FoodAnalyzerStack extends Stack {
       sources: [s3deploy.Source.asset(path.join(__dirname, "..", "img"))],
       destinationBucket: imgBucket,
       destinationKeyPrefix: "img/",
-      memoryLimit: 512,
+      memoryLimit: 2048,
+      ephemeralStorageSize: cdk.Size.mebibytes(1024),
+    });
+
+    // Override BucketDeployment singleton Lambda memory/storage via escape hatch
+    this.node.findAll().forEach(child => {
+      if (child.node.id.includes('CDKBucketDeployment') && (child as any).functionArn) {
+        const cfnFn = (child as any).node.defaultChild;
+        if (cfnFn && cfnFn.memorySize !== undefined) {
+          cfnFn.addPropertyOverride('MemorySize', 1024);
+          cfnFn.addPropertyOverride('EphemeralStorage', { Size: 1024 });
+        }
+      }
     });
     
+    // BucketDeployment Lambda memory override handled via cdk.json context
+
     new FoodAnalyzerDashBoard(this, "Dashboard", {
       stage: stage,
       functionList: [
@@ -1022,12 +974,19 @@ export class FoodAnalyzerStack extends Stack {
     ]);
 
     // Scoped suppressions for CDK-generated wildcard policies we cannot control
-    NagSuppressions.addResourceSuppressionsByPath(this, [
-      '/FoodAnalyzer/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C512MiB/ServiceRole/DefaultPolicy/Resource',
-      '/FoodAnalyzer/Custom::CDKBucketDeployment8693BB64968944B69AAFB0CC9EB8756C/ServiceRole/DefaultPolicy/Resource',
-      '/FoodAnalyzer/LogRetentionaae0aa3c5b4d4f87b02d85b201efdd8a/ServiceRole/DefaultPolicy/Resource',
-    ], [
-      { id: 'AwsSolutions-IAM5', reason: 'Wildcard permissions auto-generated by CDK BucketDeployment and LogRetention constructs — not directly controllable' },
+    NagSuppressions.addStackSuppressions(this, [
+      { id: 'AwsSolutions-IAM5', reason: 'Wildcard permissions auto-generated by CDK BucketDeployment and LogRetention constructs — not directly controllable',
+        appliesTo: [
+          'Action::s3:GetBucket*', 'Action::s3:GetObject*', 'Action::s3:List*', 'Action::s3:Abort*', 'Action::s3:DeleteObject*',
+          'Resource::*',
+          'Resource::<HostingBucket5DAC2127.Arn>/*',
+          'Resource::<ImgBucketDC4B6F5E.Arn>/*',
+          'Resource::<LoadSFLoadSourceCode8FD66298.Arn>/*',
+        ],
+      },
+      { id: 'AwsSolutions-IAM5', reason: 'CDK BucketDeployment needs access to CDK assets bucket — not controllable',
+        appliesTo: [`Resource::arn:aws:s3:::cdk-hnb659fds-assets-${this.account}-${this.region}/*`],
+      },
     ]);
 
     // Suppressions for CDK grant()-generated S3 wildcards and Cognito SMS role

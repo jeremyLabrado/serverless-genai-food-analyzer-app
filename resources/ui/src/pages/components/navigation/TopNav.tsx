@@ -31,7 +31,11 @@ const TopNav = ({
     <TopNavigation
       identity={{
         href: "#",
-        title: "FoodLens",
+        title: "Smart Groceries",
+        logo: {
+          src: "/icons/logo_aws.png",
+          alt: "Smart Groceries",
+        },
         onFollow: () => navigate("/"),
         // logo: {
         //   src: language === "english" ? flag_en : flag_fr,

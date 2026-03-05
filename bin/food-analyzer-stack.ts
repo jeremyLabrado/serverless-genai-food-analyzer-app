@@ -54,6 +54,4 @@ const foodAnalyzer = new FoodAnalyzerStack(app, `FoodAnalyzer`,  deploymentStage
 
 Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
 
-Aspects.of(app).add(new AwsSolutionsChecks({ verbose: true }));
-
 

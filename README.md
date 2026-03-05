@@ -1,5 +1,9 @@
 # Recipe-First Shopping Assistant
 
+<p align="center">
+  <img src="img/logo.png" alt="Smart Groceries Logo" width="200">
+</p>
+
 **A GenAI-powered grocery shopping platform that transforms how customers shop by starting with recipes, not products.** Built with serverless architecture and generative AI to showcase the future of grocery retail. Traditional grocery shopping means browsing aisles, adding random items, and wondering what to cook. **Recipe-First Shopping** flips this model: photo your fridge → get personalized recipes → auto-add missing ingredients → cook tonight. This approach increases basket as customers add missing recipe ingredients in one click, reduces food waste through recipes that use existing ingredients first and enables quick reorder with favorite recipes.
 
 > **Note**: This is a technology showcase demonstrating recipe-to-cart integration patterns for grocery retailers. Mock pricing and checkout flows simulate production integration points.
