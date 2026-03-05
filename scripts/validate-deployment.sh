@@ -40,7 +40,7 @@ LAMBDA_FUNCTIONS=$(aws lambda list-functions \
   --query 'Functions[?contains(FunctionName, `'$STACK_NAME'`)].FunctionName' \
   --output text)
 
-LAMBDA_COUNT=$(echo $LAMBDA_FUNCTIONS | wc -w)
+LAMBDA_COUNT=$(echo "$LAMBDA_FUNCTIONS" | wc -w)
 if [ $LAMBDA_COUNT -ge 6 ]; then
   echo -e "${GREEN}✅ Found $LAMBDA_COUNT Lambda functions${NC}"
 else
@@ -56,7 +56,7 @@ TABLES=$(aws dynamodb list-tables \
   --query 'TableNames[?contains(@, `'$STACK_NAME'`)]' \
   --output text)
 
-TABLE_COUNT=$(echo $TABLES | wc -w)
+TABLE_COUNT=$(echo "$TABLES" | wc -w)
 if [ $TABLE_COUNT -ge 5 ]; then
   echo -e "${GREEN}✅ Found $TABLE_COUNT DynamoDB tables${NC}"
   
@@ -64,7 +64,7 @@ if [ $TABLE_COUNT -ge 5 ]; then
   for table in $TABLES; do
     if [[ $table == *"Cache"* ]]; then
       TTL_STATUS=$(aws dynamodb describe-time-to-live \
-        --table-name $table \
+        --table-name "$table" \
         --region "$REGION" \
         --query 'TimeToLiveDescription.TimeToLiveStatus' \
         --output text 2>/dev/null || echo "DISABLED")
@@ -97,10 +97,10 @@ if [ -n "$DISTRIBUTION_ID" ]; then
     --query 'Stacks[0].Outputs[?OutputKey==`domainName`].OutputValue' \
     --output text)
   
-  echo -e "${GREEN}✅ CloudFront domain: https://$DOMAIN_NAME${NC}"
+  echo -e "${GREEN}✅ CloudFront domain: https://"$DOMAIN_NAME"${NC}"
   
   # Test endpoint
-  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://$DOMAIN_NAME --max-time 10)
+  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://"$DOMAIN_NAME" --max-time 10)
   if [ "$HTTP_CODE" = "200" ]; then
     echo -e "${GREEN}✅ CloudFront responding: HTTP $HTTP_CODE${NC}"
   else
@@ -137,7 +137,7 @@ if [ -n "$USER_POOL_ID" ]; then
   
   # Check MFA status
   MFA_CONFIG=$(aws cognito-idp describe-user-pool \
-    --user-pool-id $USER_POOL_ID \
+    --user-pool-id "$USER_POOL_ID" \
     --region "$REGION" \
     --query 'UserPool.MfaConfiguration' \
     --output text 2>/dev/null || echo "OFF")
@@ -171,9 +171,9 @@ echo ""
 # 8. Check Recent Errors
 echo "8️⃣  Checking for recent errors..."
 ERROR_COUNT=$(aws logs filter-log-events \
-  --log-group-name /aws/lambda/$STACK_NAME-GenerateRecipe* \
+  --log-group-name "/aws/lambda/$STACK_NAME-GenerateRecipe*" \
   --filter-pattern "ERROR" \
-  --start-time $(($(date +%s) - 3600))000 \
+  --start-time "$(( $(date +%s) - 3600) ))000" \
   --region "$REGION" \
   --query 'events' \
   --output text 2>/dev/null | wc -l)
@@ -205,5 +205,5 @@ echo "  3. Test barcode scanning"
 echo "  4. Test cart and checkout flow"
 echo "  5. Monitor CloudWatch dashboard for 24 hours"
 echo ""
-echo "🌐 Application URL: https://$DOMAIN_NAME"
+echo "🌐 Application URL: https://"$DOMAIN_NAME""
 echo ""
