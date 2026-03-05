@@ -14,10 +14,11 @@ import {
 } from "aws-cdk-lib";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { LogLevel } from "aws-cdk-lib/aws-stepfunctions";
+import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 
 export class LoadDatabase extends Construct {
-  constructor(scope: Construct, id: string, tableToLoad: dynamodb.Table, stackName: string, accessLogsBucket?: s3.IBucket, logEncryptionKey?: kms.IKey) {
+  constructor(scope: Construct, id: string, tableToLoad: dynamodb.Table, stackName: string, accessLogsBucket?: s3.IBucket) {
     super(scope, id);
 
     const loadSourceCode = new s3.Bucket(this, "LoadSourceCode", {
@@ -30,7 +31,6 @@ export class LoadDatabase extends Construct {
         ignorePublicAcls: true,
         restrictPublicBuckets: true,
       }),
-      lifecycleRules: [{ noncurrentVersionExpiration: Duration.days(30) }],
       ...(accessLogsBucket && {
         serverAccessLogsBucket: accessLogsBucket,
         serverAccessLogsPrefix: "load-source-logs/",
@@ -92,6 +92,8 @@ export class LoadDatabase extends Construct {
     new s3deploy.BucketDeployment(this, "DeploySrcCode", {
       sources: [s3deploy.Source.asset("scripts/")],
       destinationBucket: loadSourceCode,
+      memoryLimit: 2048,
+      ephemeralStorageSize: cdk.Size.mebibytes(1024),
     });
 
     const loadTask = new tasks.CodeBuildStartBuild(

@@ -107,7 +107,7 @@ async function signRequest(request) {
       ...signedHeaders,
     },
   };
-  if (request.body) {
+  if (request.body && request.body.data) {
     result.body = { ...request.body, action: "replace" };
   }
   return result;

@@ -87,7 +87,7 @@ const Recipe: React.FC = () => {
         reader.readAsDataURL(blob);
       });
     } catch (error) {
-      console.error("Failed to load image:", imgName, error); // nosemgrep: unsafe-formatstring
+      console.error(`Failed to load ${imgName}:`, error);
     }
   };
 
@@ -267,7 +267,6 @@ function resizeBase64Image(base64Image: string, width: number, height: number): 
                       }}>
                         🛒 Shop Smarter with AI
                       </h1>
-{/* nosemgrep: jsx-not-internationalized -- Demo app, i18n not required */}
                       <p style={{
                         color: "rgba(255, 255, 255, 0.95)",
                         fontSize: "clamp(0.85rem, 2.5vw, 1.1rem)",
@@ -283,7 +282,6 @@ function resizeBase64Image(base64Image: string, width: number, height: number): 
                   {!imgSrc && capturedImages.length === 0 && (
                     <Container>
                       <SpaceBetween direction="vertical" size="s">
-{/* nosemgrep: jsx-not-internationalized -- Demo app, i18n not required */}
                         <h3 style={{ margin: "0 0 16px 0", color: "#333", fontSize: "1.2rem" }}>Recipe Context</h3>
                         <div style={{
                           display: "grid",
@@ -429,7 +427,6 @@ function resizeBase64Image(base64Image: string, width: number, height: number): 
                       borderTop: "1px solid #e0e0e0",
                       marginTop: "20px",
                     }}>
-{/* nosemgrep: jsx-not-internationalized -- Demo app, i18n not required */}
                       <p style={{ 
                         color: "#666", 
                         marginBottom: "12px",

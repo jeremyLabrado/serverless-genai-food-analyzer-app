@@ -453,7 +453,7 @@ def write_product_to_db(product_code, language, product_name, ingredients, addit
             logger.warning("Product write returned non-200 status: %s", response['ResponseMetadata']['HTTPStatusCode'])
 
     except Exception as e:
-        logger.warning("Error while saving the Product into database: %s", e)
+        logger.error("Error while saving the Product into database", e)
         raise
 
 

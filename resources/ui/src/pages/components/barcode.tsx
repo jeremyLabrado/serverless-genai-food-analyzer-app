@@ -195,7 +195,6 @@ const Barcode: React.FC = () => {
               }}>
                 🔍 Scan Product Barcode
               </h1>
-{/* nosemgrep: jsx-not-internationalized -- Demo app, i18n not required */}
               <p style={{
                 color: "rgba(255, 255, 255, 0.95)",
                 fontSize: "clamp(0.85rem, 2.5vw, 1rem)",
@@ -206,7 +205,6 @@ const Barcode: React.FC = () => {
               </p>
             </div>
 
-{/* nosemgrep: jsx-not-internationalized -- Demo app, i18n not required */}
             {!hasPreferences && (
               <Alert
                 type="warning"
