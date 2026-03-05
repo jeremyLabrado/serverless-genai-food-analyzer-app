@@ -11,7 +11,6 @@ import re
 import defusedxml.ElementTree as ET
 from aws_lambda_powertools import Logger, Tracer
 from typing import Dict, List, Optional, Tuple, Union, Any
-import re
 
 tracer = Tracer()
 logger = Logger()
@@ -124,7 +123,7 @@ def make_api_request(product_code: str) -> Optional[Dict[str, Any]]:
     logger.debug("Calling the API to get the product informations")
 
     try:
-        response = requests.get(full_url, headers=headers, timeout=5)
+        response = requests.get(full_url, headers=headers, timeout=30)
         response.raise_for_status()  # Optional: Raises an exception for 4xx and 5xx status codes.
         json_data = response.json()
 
@@ -274,6 +273,9 @@ def parse_ingredients_description(ingredients, language):
     """
     try:
         xml_ingredients = call_claude_haiku(generate_ingredients_description(ingredients, language))
+        # Strip markdown code fences if present (Claude Haiku 4.5 may wrap XML)
+        xml_ingredients = re.sub(r'^```(?:xml)?\s*', '', xml_ingredients.strip())
+        xml_ingredients = re.sub(r'\s*```$', '', xml_ingredients)
         ingredients_and_descriptions = {}
 
         root = ET.fromstring(xml_ingredients)
@@ -284,7 +286,7 @@ def parse_ingredients_description(ingredients, language):
         return ingredients_and_descriptions
 
     except Exception as e:
-        logger.error("Impossible to generate ingrediens descriptions", e)
+        logger.error("Impossible to generate ingrediens descriptions: %s", e)
         return None
     
 
@@ -300,6 +302,8 @@ def parse_additives_description(additives, language):
     """
     try:
         xml_additives= call_claude_haiku(generate_additives_description(additives, language))
+        xml_additives = re.sub(r'^```(?:xml)?\s*', '', xml_additives.strip())
+        xml_additives = re.sub(r'\s*```$', '', xml_additives)
         additives_and_descriptions = {}
         root = ET.fromstring(xml_additives)
 
@@ -311,7 +315,7 @@ def parse_additives_description(additives, language):
         
         return additives_and_descriptions
     except Exception as e:
-        logger.error("Impossible to generate additives descriptions", e)
+        logger.error("Impossible to generate additives descriptions: %s", e)
         return None
 
 @tracer.capture_method
@@ -361,7 +365,7 @@ def get_product_from_db(product_code, language):
         else:
             return None, None, None, None, None, None, None, None, None, None, None, None, None
     except Exception as e:
-        logger.error("Error while getting the Product from database", e)
+        logger.error("Error while getting the Product from database: %s", e)
         return None, None, None, None, None, None, None, None, None, None, None, None, None
 
 @tracer.capture_method
@@ -480,7 +484,7 @@ def get_product_from_open_food_facts_db(product_code):
         else:
             return None
     except Exception as e:
-        logger.error("Error while getting the Product from get_product_from_open_food_facts_db table", e)
+        logger.error("Error while getting the Product from get_product_from_open_food_facts_db table: %s", e)
         return None
     
 def fetch_new_product(product_code, language):
@@ -515,57 +519,42 @@ def fetch_new_product(product_code, language):
         image_small_url=None
         image_thumb_url=None
         
-        if 'product' not in response_data or 'ingredients_text' not in response_data['product']:
-            raise ValueError("Missing ingredients in Open Food Facts API. Unable to generate a personalized summary for this product.")
+        if 'product' not in response_data:
+            raise ValueError("Product not found in Open Food Facts database.")
 
-        ingredients=response_data['product']['ingredients_text']
-        product_name=response_data['product']['product_name']
+        product = response_data['product']
+        product_name = product.get('product_name', 'Unknown')
+        ingredients = product.get('ingredients_text', '')
+
+        # Extract metadata even if no ingredients
+        if 'allergens_tags' in product:
+            allergens = product['allergens_tags']
+        if 'nutriments' in product:
+            nutriments = filter_nutriments(product['nutriments'])
+        if 'labels_tags' in product:
+            labels = product['labels_tags']
+        if 'categories' in product:
+            categories = product['categories']
+        nova_group = product.get('nova_group')
+        nutriscore_grade = product.get('nutriscore_grade')
+        ecoscore_grade = product.get('ecoscore_grade')
+        brands = product.get('brands')
+        image_small_url = product.get('image_small_url')
+        image_thumb_url = product.get('image_thumb_url')
+
         if not ingredients:
-            raise ValueError("Missing ingredients in Open Food Facts API. Unable to generate a personalized summary for this product.")
+            # Return product metadata with a friendly message instead of an error
+            response_ingredients = {"No ingredients listed": "This is a whole food product with no ingredient list in the database."}
+            return response_ingredients, [], product_name, allergens, nutriments, labels, categories, nova_group, nutriscore_grade, ecoscore_grade, brands, image_small_url, image_thumb_url
+
         response_ingredients = parse_ingredients_description(ingredients, language)
 
-        if 'product' in response_data and 'additives_tags' in response_data['product'] and response_data['product']['additives_tags']:
-            additives = response_data['product']['additives_tags']
+        if 'additives_tags' in product and product['additives_tags']:
+            additives = product['additives_tags']
 
         response_additives = additives
         if additives:
             response_additives = parse_additives_description(additives, language)
-            
-        # Extract allergens
-        if 'product' in response_data and 'allergens_tags' in response_data['product']:
-            allergens = response_data['product']['allergens_tags']
-            
-        # Extract and filter nutriments
-        if 'product' in response_data and 'nutriments' in response_data['product']:
-            nutriments = filter_nutriments(response_data['product']['nutriments'])
-            
-        # Extract labels
-        if 'product' in response_data and 'labels_tags' in response_data['product']:
-            labels = response_data['product']['labels_tags']
-            
-        # Extract categories
-        if 'product' in response_data and 'categories' in response_data['product']:
-            categories = response_data['product']['categories']
-            
-        # Extract quality indicators
-        if 'product' in response_data and 'nova_group' in response_data['product']:
-            nova_group = response_data['product']['nova_group']
-            
-        if 'product' in response_data and 'nutriscore_grade' in response_data['product']:
-            nutriscore_grade = response_data['product']['nutriscore_grade']
-            
-        if 'product' in response_data and 'ecoscore_grade' in response_data['product']:
-            ecoscore_grade = response_data['product']['ecoscore_grade']
-            
-        if 'product' in response_data and 'brands' in response_data['product']:
-            brands = response_data['product']['brands']
-            
-        # Extract image URLs
-        if 'product' in response_data and 'image_small_url' in response_data['product']:
-            image_small_url = response_data['product']['image_small_url']
-            
-        if 'product' in response_data and 'image_thumb_url' in response_data['product']:
-            image_thumb_url = response_data['product']['image_thumb_url']
 
         return response_ingredients, response_additives, product_name, allergens, nutriments, labels, categories, nova_group, nutriscore_grade, ecoscore_grade, brands, image_small_url, image_thumb_url
 
@@ -638,7 +627,7 @@ def handler(event, context):
         }
 
     except Exception as e:
-            logger.error("Error", e)
+            logger.error("Error: %s", e)
             return {
             "statusCode": 500,
             "body": json.dumps({"error": str(e)}),

@@ -10,9 +10,11 @@ import {
   aws_iam as iam,
   aws_kms as kms,
   RemovalPolicy,
+  Duration,
 } from "aws-cdk-lib";
 import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
 import { LogLevel } from "aws-cdk-lib/aws-stepfunctions";
+import * as cdk from "aws-cdk-lib";
 import { Construct } from "constructs";
 
 export class LoadDatabase extends Construct {
@@ -22,6 +24,7 @@ export class LoadDatabase extends Construct {
     const loadSourceCode = new s3.Bucket(this, "LoadSourceCode", {
       enforceSSL: true,
       encryption: s3.BucketEncryption.S3_MANAGED,
+      versioned: true,
       blockPublicAccess: new s3.BlockPublicAccess({
         blockPublicPolicy: true,
         blockPublicAcls: true,
@@ -43,7 +46,10 @@ export class LoadDatabase extends Construct {
       encryptionKey: codeBuildKey,
       logging: {
         cloudWatch: {
-          logGroup: new logs.LogGroup(this, `MyLogGroup`),
+          logGroup: new logs.LogGroup(this, `MyLogGroup`, {
+            retention: RetentionDays.ONE_YEAR,
+            ...(logEncryptionKey && { encryptionKey: logEncryptionKey }),
+          }),
         },
       },
       projectName: "CrawlProject" + Aws.STACK_NAME,
@@ -86,6 +92,8 @@ export class LoadDatabase extends Construct {
     new s3deploy.BucketDeployment(this, "DeploySrcCode", {
       sources: [s3deploy.Source.asset("scripts/")],
       destinationBucket: loadSourceCode,
+      memoryLimit: 2048,
+      ephemeralStorageSize: cdk.Size.mebibytes(1024),
     });
 
     const loadTask = new tasks.CodeBuildStartBuild(
@@ -111,7 +119,8 @@ export class LoadDatabase extends Construct {
     const sfnLog = new LogGroup(this, "sfnLog", {
       logGroupName: "/aws/vendedlogs/states/" + Aws.STACK_NAME,
       removalPolicy: RemovalPolicy.DESTROY,
-      retention: RetentionDays.ONE_WEEK,
+      retention: RetentionDays.ONE_YEAR,
+      ...(logEncryptionKey && { encryptionKey: logEncryptionKey }),
     });
 
     const stepFunction = new sfn.StateMachine(this, "LoadDatabase", {

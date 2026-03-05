@@ -4,9 +4,6 @@ import json
 import hashlib
 from decimal import Decimal
 from botocore.exceptions import ClientError
-import urllib.request
-import urllib.parse
-import urllib.error
 import json
 import os
 import re

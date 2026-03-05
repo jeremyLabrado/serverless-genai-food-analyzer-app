@@ -1,5 +1,9 @@
 # Recipe-First Shopping Assistant
 
+<p align="center">
+  <img src="img/logo.png" alt="Smart Groceries Logo" width="200">
+</p>
+
 **A GenAI-powered grocery shopping platform that transforms how customers shop by starting with recipes, not products.** Built with serverless architecture and generative AI to showcase the future of grocery retail. Traditional grocery shopping means browsing aisles, adding random items, and wondering what to cook. **Recipe-First Shopping** flips this model: photo your fridge → get personalized recipes → auto-add missing ingredients → cook tonight. This approach increases basket as customers add missing recipe ingredients in one click, reduces food waste through recipes that use existing ingredients first and enables quick reorder with favorite recipes.
 
 > **Note**: This is a technology showcase demonstrating recipe-to-cart integration patterns for grocery retailers. Mock pricing and checkout flows simulate production integration points.
@@ -301,6 +305,7 @@ authType: lambda.FunctionUrlAuthType.AWS_IAM
 - `shoppingCart`: Cart items with recipe context
 - `favoriteRecipes`: Saved recipes with ratings
 
+
 ## Installation
 
 ### Prerequisites
@@ -410,7 +415,7 @@ localStorage.setItem("favoriteRecipes", JSON.stringify(favorites));
    ```
 
 
-## Runtime Versions
+- [AWS CLI 2+](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-welcome.html) must be installed on the deployment machine. ([Instructions](https://nodejs.org/en/download/))
 
 - **Node.js 24.x** - TypeScript Lambda functions (upgraded Dec 2025)
 - **Python 3.14** - Python Lambda functions
@@ -446,4 +451,5 @@ For detailed technical information, see the [docs/](docs/) directory:
 
 ## License
 
-This project is licensed under the MIT-0 License. See the [LICENSE](./LICENCE) file.
+This library is licensed under the MIT-0 License. See the LICENSE file.
+
