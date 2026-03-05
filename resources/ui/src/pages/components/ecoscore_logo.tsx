@@ -7,7 +7,7 @@ export const EcoScoreLogo: React.FC<EcoScoreLogoProps> = ({ grade, size = 80 }) 
   const g = grade.toUpperCase();
   
   // Handle unknown grades
-  if (g === 'UNKNOWN' || !g) {
+  if (g === 'UNKNOWN' || g === 'NOT-APPLICABLE' || !g) {
     return (
       <div 
         style={{ 

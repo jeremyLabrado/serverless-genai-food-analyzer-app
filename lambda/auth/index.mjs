@@ -125,13 +125,7 @@ const getToken = async (authorization) => {
 };
 
 async function verifyToken(authorization) {
-  console.log(
-    "authorization=" + authorization 
-  );
-
   const token = await getToken(authorization);
-  console.log("token="+token);
-
   const secrets = await getSecrets();
   
   const jwksRes = await axios.get(
@@ -147,21 +141,17 @@ async function verifyToken(authorization) {
       return true;
     }
   } catch (err) {
-    console.log(`token error: ${err.name} ${err.message}`);
+    console.error(`token verification failed: ${err.name}`);
   }
 
   return false;
 }
 
-//exports.handler = async function (event) {
 export const handler = async (event) => {
-  //console.log("event=" + JSON.stringify(event));
-
   try {
     const request = event.Records[0].cf.request;
 
     if(request.method === 'OPTIONS') {
-      console.log("OPTIONS call, return cors headers")
       return {
         status: "204",
         headers: {
@@ -180,20 +170,15 @@ export const handler = async (event) => {
         },
       }
     }
-    //const authorization = request.headers.authorization[0]?.value;
     const authorization = request.headers.authorization && request.headers.authorization[0]?.value;
-    //console.log("authorization="+authorization)
     if (authorization) {
       
       const valid = await verifyToken(
         authorization       
       );
 
-      console.log("valid=" + valid);
-
       if (valid === true) {
         const signedRequest = await signRequest(request);
-        console.info("signed request=" + JSON.stringify(signedRequest));
         return signedRequest;
       } else {
         return {
@@ -203,7 +188,6 @@ export const handler = async (event) => {
         };
       }
     } else {
-      console.log("No token found in Authorization header")
       return {
         status: "400",
         statusDescription: "Bad Request",
@@ -211,7 +195,7 @@ export const handler = async (event) => {
       };
     }
   } catch (e) {
-    console.log("Unknown error")
+    console.error("Auth handler error");
     return {
       status: "400",
       statusDescription: "Bad Request",

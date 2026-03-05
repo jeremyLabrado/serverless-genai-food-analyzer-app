@@ -80,16 +80,13 @@ async function generateRecipeSteps(language, recipe, responseStream) {
                     const decoded_event = JSON.parse(new TextDecoder().decode(event.chunk.bytes));
                     if (decoded_event.type === 'content_block_delta' && decoded_event.delta.type === 'text_delta') {
                         const text = decoded_event.delta.text;
-                        console.log("text=" + text);
                         //responseStream.write(decoded_event.delta.text)
                         //accumulatedChunks += text;
                         logger.info(decoded_event.delta.text);
                         completion += decoded_event.delta.text;
                         if (accumulating) {
                             accumulatedChunks += text;
-                            console.log("accumulatedChunks=" + accumulatedChunks);
                             if (accumulatedChunks.includes('</thinking>')) {
-                                console.log("tag found");
                                 accumulating = false;
                                 const startIndex = accumulatedChunks.indexOf("</thinking>") + "</thinking>".length;
                                 const remainingText = accumulatedChunks.substring(startIndex);
@@ -98,7 +95,6 @@ async function generateRecipeSteps(language, recipe, responseStream) {
                             }
                         }
                         else {
-                            console.log("responseStream write text=" + text);
                             responseStream.write(text);
                         }
                     }
