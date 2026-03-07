@@ -37,6 +37,8 @@ const app = new cdk.App({
         'ct-cloudtrail-pr-4', /* Demo app, CloudTrail CloudWatch logs not required */
         'kms_create_grant_aws_service_check', /* KMS grant created by CDK for CodeBuild encryption key */
         'ct-kms-pr-3', /* KMS grant created by CDK for CodeBuild encryption key */
+        'lambda_function_public_access_prohibited_check', /* OAC Lambda URL permissions are scoped to CloudFront distribution, not public */
+        'ct-lambda-pr-2', /* OAC Lambda URL permissions are scoped to CloudFront distribution, not public */
       ]
     })
   ],

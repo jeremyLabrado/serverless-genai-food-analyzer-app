@@ -24,7 +24,8 @@ const Recipe: React.FC = () => {
   const webcamRef = useRef<any>();
   const [imgSrc, setImgSrc] = useState<string | null>(null);
   const [myValue, setMyValue] = useState([]);
-  const [selectedImgSrc, setSelectedImgSrc] = useState<string | null>(null);
+  const [capturedImages, setCapturedImages] = useState<string[]>([]);
+  const [selectedImgSrc, setSelectedImgSrc] = useState<string[]>([]);
   const [showWebcam, setShowWebcam] = useState(false);
   const [showOptionsButtons, setShowOptionsButtons] = useState(true);
   const [loadingVideoDevices, setLoadingVideoDevices] = useState(false);
@@ -86,7 +87,7 @@ const Recipe: React.FC = () => {
         reader.readAsDataURL(blob);
       });
     } catch (error) {
-      console.error("Failed to load image:", imgName, error);
+      console.error(`Failed to load ${imgName}:`, error);
     }
   };
 
@@ -188,8 +189,20 @@ function resizeBase64Image(base64Image: string, width: number, height: number): 
     }
   }, [webcamRef]);
 
+  const addImage = () => {
+    if (imgSrc) {
+      setCapturedImages([...capturedImages, imgSrc]);
+      setImgSrc(null);
+      setShowOptionsButtons(true);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setCapturedImages(capturedImages.filter((_, i) => i !== index));
+  };
+
   const startWebcam = () => {
-    setSelectedImgSrc(null);
+    setSelectedImgSrc([]);
     setImgSrc(null);
     setShowWebcam(true);
     enumerateDevices();
@@ -198,17 +211,17 @@ function resizeBase64Image(base64Image: string, width: number, height: number): 
   const retake = () => {
     setImgSrc(null);
   };
-  const useThisImage = () => {
-    setShowOptionsButtons(false);
-    //setShowWebcam(false);
 
-    setSelectedImgSrc(imgSrc);
+  const useTheseImages = () => {
+    const allImages = imgSrc ? [...capturedImages, imgSrc] : capturedImages;
+    setSelectedImgSrc(allImages);
+    setShowOptionsButtons(false);
   };
 
   const currentTranslations = customTranslations[language];
 
   const fileUploadOnChange = ({ detail }) => {
-    setSelectedImgSrc(null);
+    setSelectedImgSrc([]);
     console.log(detail.value);
     const files = detail.value;
     if (files.length > 0) {
@@ -254,7 +267,6 @@ function resizeBase64Image(base64Image: string, width: number, height: number): 
                       }}>
                         🛒 Shop Smarter with AI
                       </h1>
-{/* nosemgrep: jsx-not-internationalized */}
                       <p style={{
                         color: "rgba(255, 255, 255, 0.95)",
                         fontSize: "clamp(0.85rem, 2.5vw, 1.1rem)",
@@ -270,7 +282,6 @@ function resizeBase64Image(base64Image: string, width: number, height: number): 
                   {!imgSrc && capturedImages.length === 0 && (
                     <Container>
                       <SpaceBetween direction="vertical" size="s">
-{/* nosemgrep: jsx-not-internationalized */}
                         <h3 style={{ margin: "0 0 16px 0", color: "#333", fontSize: "1.2rem" }}>Recipe Context</h3>
                         <div style={{
                           display: "grid",
@@ -416,7 +427,6 @@ function resizeBase64Image(base64Image: string, width: number, height: number): 
                       borderTop: "1px solid #e0e0e0",
                       marginTop: "20px",
                     }}>
-{/* nosemgrep: jsx-not-internationalized */}
                       <p style={{ 
                         color: "#666", 
                         marginBottom: "12px",
@@ -538,12 +548,16 @@ function resizeBase64Image(base64Image: string, width: number, height: number): 
                       }}
                     >
                       <SpaceBetween direction="horizontal" size="s">
-                        {/* <Button onClick={retake} variant="primary">
+                        <Button onClick={retake} variant="normal">
                           {currentTranslations["recipe_retake_photo"]}
-                        </Button> */}
-
-                        <Button onClick={useThisImage} variant="primary">
-                          {currentTranslations["recipe_use_this"]}
+                        </Button>
+                        <Button onClick={addImage} variant="normal">
+                          {currentTranslations["recipe_add_image"]}
+                        </Button>
+                        <Button onClick={useTheseImages} variant="primary">
+                          {capturedImages.length > 0 
+                            ? currentTranslations["recipe_generate_recipes"]
+                            : currentTranslations["recipe_use_this"]}
                         </Button>
                       </SpaceBetween>
                     </div>
@@ -623,10 +637,10 @@ function resizeBase64Image(base64Image: string, width: number, height: number): 
 
         <div id="reader"></div>
 
-        {selectedImgSrc && (
+        {selectedImgSrc.length > 0 && (
           <div>
             <ImageIngredients
-              img={selectedImgSrc}
+              images={selectedImgSrc}
               language={language}
               recipeContext={{
                 time: recipeTime?.value,

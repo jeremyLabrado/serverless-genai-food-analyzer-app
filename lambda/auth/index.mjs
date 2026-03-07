@@ -2,20 +2,13 @@ import {
   SecretsManagerClient,
   GetSecretValueCommand,
 } from "@aws-sdk/client-secrets-manager";
-import { fromBase64 } from "@aws-sdk/util-base64-node";
 
 const client = new SecretsManagerClient({ region: "us-east-1" });
 const secretName = "FoodAnalyzerSecretConfig";
 
 import * as jose from "jose";
 import axios from "axios";
-import { SignatureV4 } from "@aws-sdk/signature-v4";
-import { fromNodeProviderChain } from "@aws-sdk/credential-providers";
-import { HttpRequest } from "@aws-sdk/protocol-http";
-const { createHash, createHmac } = await import("node:crypto");
-
-const credentialProvider = fromNodeProviderChain();
-const credentials = await credentialProvider();
+import { Sha256 } from "@aws-crypto/sha256-js";
 
 const REGION = "us-east-1";
 
@@ -27,7 +20,7 @@ const getSecrets = async () => {
     if ("SecretString" in data) {
       return JSON.parse(data.SecretString);
     } else if ("SecretBinary" in data) {
-      const buff = fromBase64(data.SecretBinary);
+      const buff = Buffer.from(data.SecretBinary, "base64");
       return JSON.parse(buff.toString("ascii"));
     }
   } catch (err) {
@@ -36,81 +29,60 @@ const getSecrets = async () => {
   }
 };
 
-function Sha256(secret) {
-  return secret ? createHmac("sha256", secret) : createHash("sha256");
+// Compute SHA256 hash of body for OAC Lambda URL signing
+async function computeBodyHash(body) {
+  const hash = new Sha256();
+  hash.update(body || "");
+  const digest = await hash.digest();
+  return Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
-async function signRequest(request) {
-  let headers = request.headers;
-
-  // remove the x-forwarded-for from the signature
-  delete headers["x-forwarded-for"];
-
+async function prepareRequest(request) {
   if (!request.origin.hasOwnProperty("custom"))
     throw (
       "Unexpected origin type. Expected 'custom'. Got: " +
       JSON.stringify(request.origin)
     );
 
-  // remove the "behaviour" path from the uri to send to Lambda
-  // ex: /updateBook/1234 => /1234
+  // Remove the behavior path prefix from the URI
   let uri = request.uri.substring(1);
   let urisplit = uri.split("/");
-  urisplit.shift(); // remove the first part (getBooks, createBook, ...)
+  urisplit.shift();
   uri = "/" + urisplit.join("/");
   request.uri = uri;
 
-  const hostname = headers["host"][0].value;
-  const region = hostname.split(".")[2];
-  const path =
-    request.uri + (request.querystring ? "?" + request.querystring : "");
+  // Set host header to origin domain (required for OAC signing)
+  const hostname = request.origin.custom.domainName;
+  request.headers["host"] = [{ key: "Host", value: hostname }];
 
-  // build the request to sign
-  const req = new HttpRequest({
-    hostname,
-    path,
-    body:
-      request.body && request.body.data
-        ? Buffer.from(request.body.data, request.body.encoding)
-        : undefined,
-    method: request.method,
-  });
-  for (const header of Object.values(headers)) {
-    req.headers[header[0].key] = header[0].value;
-  }
+  // Remove viewer authorization header — OAC will add its own SigV4 Authorization
+  delete request.headers["authorization"];
 
-  // sign the request with Signature V4 and the credentials of the edge function itself
-  const signer = new SignatureV4({
-    credentials,
-    region,
-    service: "lambda",
-    sha256: Sha256,
-  });
-
-  const signedRequest = await signer.sign(req);
-
-  // reformat the headers for CloudFront
-  const signedHeaders = {};
-  for (const header in signedRequest.headers) {
-    signedHeaders[header.toLowerCase()] = [
-      {
-        key: header,
-        value: signedRequest.headers[header].toString(),
-      },
+  // Compute body hash for POST requests (required by Lambda URL OAC)
+  if (request.body && request.body.data) {
+    const bodyBytes = Buffer.from(request.body.data, request.body.encoding);
+    const hash = await computeBodyHash(bodyBytes);
+    request.headers["x-amz-content-sha256"] = [
+      { key: "x-amz-content-sha256", value: hash },
+    ];
+  } else {
+    // Empty body hash
+    const hash = await computeBodyHash("");
+    request.headers["x-amz-content-sha256"] = [
+      { key: "x-amz-content-sha256", value: hash },
     ];
   }
 
-  const result = {
-    ...request,
-    headers: {
-      ...request.headers,
-      ...signedHeaders,
-    },
-  };
-  if (request.body && request.body.data) {
-    result.body = { ...request.body, action: "replace" };
-  }
-  return result;
+  console.log("PREPARED", JSON.stringify({
+    method: request.method,
+    uri: request.uri,
+    hostname,
+    hasBody: !!(request.body && request.body.data),
+  }));
+
+  return request;
 }
 
 const getToken = async (authorization) => {
@@ -178,8 +150,8 @@ export const handler = async (event) => {
       );
 
       if (valid === true) {
-        const signedRequest = await signRequest(request);
-        return signedRequest;
+        const preparedRequest = await prepareRequest(request);
+        return preparedRequest;
       } else {
         return {
           status: "400",
@@ -195,7 +167,7 @@ export const handler = async (event) => {
       };
     }
   } catch (e) {
-    console.error("Auth handler error");
+    console.error("Auth handler error:", e.message || e);
     return {
       status: "400",
       statusDescription: "Bad Request",

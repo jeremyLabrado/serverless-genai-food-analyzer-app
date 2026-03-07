@@ -104,7 +104,11 @@ def generate_vision_answer(bedrock_rt:boto3.client,messages:list, model_id:str, 
     
     body={'messages': [messages],**claude_config, "system": system_prompt}
     
-    response = bedrock_rt.invoke_model(modelId=model_id, body=json.dumps(body))   
+    response = bedrock_rt.invoke_model(
+        modelId=model_id,
+        body=json.dumps(body),
+        performanceConfigLatency='standard'
+    )   
     response = json.loads(response['body'].read().decode('utf-8'))
     if post_process:
         formated_response= post_process_answer(response['content'][0]['text'])
@@ -116,13 +120,13 @@ def generate_vision_answer(bedrock_rt:boto3.client,messages:list, model_id:str, 
 def create_message_few_shot_image(list_images_base64:list,  prompt:str)->dict:
     messages = {"role": "user", "content": []}
     for image in list_images_base64:
-        print("image")
-        print(image)
+        logger.debug("image")
+        logger.debug(image)
         messages["content"].append({"type": "text", "text": f"Image {list_images_base64.index(image)}:"})
         fmt=image.split(",")[0].split(":")[1].split(";")
         messages["content"].append({"type": "image", "source": {"type": fmt[1], "media_type": fmt[0], "data": image.split(",")[1]}})
     messages["content"].append({"type": "text", "text": prompt})
-    print(messages)
+    logger.debug(messages)
     return messages
 
 
@@ -133,7 +137,7 @@ def handler(event, context):
     #-----for prod-----
     body = event.get("body")
     json_body = json.loads(body)
-    print(body)
+    logger.debug(body)
     language = json_body.get("language")
     list_images_base64 = json_body.get("list_images_base64")
     

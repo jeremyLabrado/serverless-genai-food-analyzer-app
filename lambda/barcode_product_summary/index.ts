@@ -94,9 +94,9 @@ function generateProductSummaryPrompt(
         nutrimentInfo += '</nutrition_per_100g>\n';
     }
     
-    // Format allergens
+    // Format allergens - only if user has allergies
     let allergenInfo = '';
-    if (productAllergens && productAllergens.length > 0) {
+    if (userAllergies && productAllergens && productAllergens.length > 0) {
         allergenInfo = `\n<product_allergens>${productAllergens.join(', ')}</product_allergens>\n`;
     }
     
@@ -154,10 +154,10 @@ function generateProductSummaryPrompt(
     
     let userContext = '';
     // nosemgrep: html-in-template-string -- These are XML-like tags in an LLM prompt sent to Bedrock, not browser HTML
-    if (userAllergies) userContext += `\n<user_allergies>${userAllergies}</user_allergies>`; // nosemgrep: html-in-template-string
-    if (userHealthGoal) userContext += `\n<user_health_goal>${userHealthGoal}</user_health_goal>`; // nosemgrep: html-in-template-string
-    if (userPreference) userContext += `\n<user_dietary_preferences>${userPreference}</user_dietary_preferences>`; // nosemgrep: html-in-template-string
-    if (userReligion) userContext += `\n<user_religious_requirement>${userReligion}</user_religious_requirement>`; // nosemgrep: html-in-template-string
+    if (userAllergies) userContext += `\n<user_allergies>${userAllergies}</user_allergies>`;
+    if (userHealthGoal) userContext += `\n<user_health_goal>${userHealthGoal}</user_health_goal>`;
+    if (userPreference) userContext += `\n<user_dietary_preferences>${userPreference}</user_dietary_preferences>`;
+    if (userReligion) userContext += `\n<user_religious_requirement>${userReligion}</user_religious_requirement>`;
     
     // nosemgrep: html-in-template-string -- LLM prompt template with XML-like tags, not rendered HTML
     return `Human:
@@ -172,48 +172,8 @@ function generateProductSummaryPrompt(
             <nutrimentInfo>${nutrimentInfo}</nutrimentInfo>
             ${qualityInfo}
 
-          1. CRITICAL: Check if any product allergens match the user's allergies. If there is a match, prominently warn the user at the beginning of your response.
-          2. Check if product labels match dietary preferences (vegan, vegetarian) or religious requirements (halal, kosher). If labels are present, use them for direct matching. If not, analyze categories and ingredients.
-          3. Use the nutritional data to assess if the product aligns with the user's health goal (weight loss, muscle gain, maintain weight, or general health).
-          4. Use the user's dietary preferences to ensure the product is compatible (e.g., keto, low carb, low fat, low sodium, vegan, vegetarian).
-          5. Use product categories to provide better context about the product type and dietary compatibility.
-          6. Present three benefits and three disadvantages for the product, ensuring that each list consists of precisely three points.
-          7. Provide specific nutritional recommendations based on the actual nutritional values and the user's needs.
-  
-          If the user's allergy information or preferences are not provided or are empty, offer general nutritional advice on the product.
-  
-          Example:
-          <product_name>Chocolate and hazelnut spread</product_name>
-          <product_ingredients>
-          {{
-              Sucre, sirop de glucose, NOISETTES entières torréfiées, matières grasses végétales (palme, karité), beurre de cacao¹, LAIT entier en poudre, PETIT-LAIT filtré en poudre, LAIT écrémé concentré sucré (LAIT écrémé, sucre), sirop de glucose-fructose, pâte de cacao¹, blancs d'ŒUFS en poudre, émulsifiant (lécithines). Peut contenir ARACHIDES, autres FRUITS À COQUE (AMANDES, NOIX DE CAJOU, NOIX DE PECAN) et SOJA. ¹Bilan massique certifié Rainforest Alliance. www.ra.org/fr.
-          }}
-          </product_ingredients>
-          <user_allergies></user_allergies>
-          <user_preferences>I don't like chocolate</user_preferences>
-          </example>
-          Response: 
-          <data>
-              <recommendations>
-                  <recommendation>
-                  Although Nutella contains a small amount of calcium and iron, it's not very nutritious and high in sugar, calories and fat.
-                  </recommendation>
-              </recommendations>
-              <benefits>
-                  <benefit>{{benefit}}</benefit>
-              </benefits>
-              <disadvantages>
-                  <disadvantage>{{disadvantage}}</disadvantage>
-              </disadvantages>                 
-          </data>
-  
-          Provide recommendation for the following product
-          <product_name>${productName}</product_name>
-          <product_ingredients>${productIngredients}</product_ingredients>${allergenInfo}${labelInfo}${categoryInfo}${nutrimentInfo}
-          <user_allergies>${userAllergies}</user_allergies>
-          <user_health_goal>${userHealthGoal}</user_health_goal>
-          <user_dietary_preferences>${userPreference}</user_dietary_preferences>
-          <user_religious_requirement>${userReligion}</user_religious_requirement>
+          For the user:
+            ${userContext}
           
           Provide the response in the third person, in ${language}, skip the preambule, disregard any content at the end and provide only the response in this Markdown format:
 
@@ -336,7 +296,7 @@ async function getProductSummary(productCode: string, paramsHash: string): Promi
     }
 }
 
-async function generateSummary(promptText, responseStream) {
+async function generateSummary(promptText: string, responseStream: NodeJS.WritableStream) {
 
     const payload = {
         messages: [
@@ -395,7 +355,7 @@ async function generateSummary(promptText, responseStream) {
     return completion;
 }
 
-async function simulateSummaryStreaming(content: string, responseStream): Promise<void> {
+async function simulateSummaryStreaming(content: string, responseStream: NodeJS.WritableStream): Promise<void> {
    
     const chunks = [];
     let remainingContent = content;
@@ -442,7 +402,7 @@ async function putProductSummaryToDynamoDB(product_code: string, params_hash: st
     }
 }
 
-async function messageHandler (event, responseStream) {
+async function messageHandler (event: APIGatewayProxyEventV2, responseStream: NodeJS.WritableStream) {
 
     try {
         logger.info(event as any);

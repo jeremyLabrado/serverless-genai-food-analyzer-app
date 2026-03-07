@@ -1,6 +1,7 @@
 import time
 import boto3
 import json
+from decimal import Decimal
 from botocore.exceptions import ClientError
 import urllib.parse
 import requests
@@ -172,7 +173,11 @@ def call_claude_haiku(prompt_text):
     contentType = "application/json"
 
     response = bedrock.invoke_model(
-        body=body, modelId=modelId, accept=accept, contentType=contentType
+        body=body,
+        modelId=modelId,
+        accept=accept,
+        contentType=contentType,
+        performanceConfigLatency='standard',
     )
     response_body = json.loads(response.get("body").read())
 
@@ -281,7 +286,7 @@ def parse_ingredients_description(ingredients, language):
         return ingredients_and_descriptions
 
     except Exception as e:
-        logger.warning("Impossible to generate ingrediens descriptions: %s: %s", e)
+        logger.error("Impossible to generate ingrediens descriptions: %s", e)
         return None
     
 
@@ -310,7 +315,7 @@ def parse_additives_description(additives, language):
         
         return additives_and_descriptions
     except Exception as e:
-        logger.warning("Impossible to generate additives descriptions: %s: %s", e)
+        logger.error("Impossible to generate additives descriptions: %s", e)
         return None
 
 @tracer.capture_method
@@ -360,7 +365,7 @@ def get_product_from_db(product_code, language):
         else:
             return None, None, None, None, None, None, None, None, None, None, None, None, None
     except Exception as e:
-        logger.warning("Error while getting the Product from database: %s: %s", e)
+        logger.error("Error while getting the Product from database: %s", e)
         return None, None, None, None, None, None, None, None, None, None, None, None, None
 
 @tracer.capture_method
@@ -448,7 +453,7 @@ def write_product_to_db(product_code, language, product_name, ingredients, addit
             logger.warning("Product write returned non-200 status: %s", response['ResponseMetadata']['HTTPStatusCode'])
 
     except Exception as e:
-        logger.warning("Error while saving the Product into database: %s", e)
+        logger.error("Error while saving the Product into database", e)
         raise
 
 
@@ -479,7 +484,7 @@ def get_product_from_open_food_facts_db(product_code):
         else:
             return None
     except Exception as e:
-        logger.warning("Error while getting the Product from get_product_from_open_food_facts_db table: %s: %s", e)
+        logger.error("Error while getting the Product from get_product_from_open_food_facts_db table: %s", e)
         return None
     
 def fetch_new_product(product_code, language):
@@ -603,7 +608,7 @@ def handler(event, context):
         # Return JSON response
         return {
             "statusCode": 200,
-            "body": json.dumps(response),
+            "body": json.dumps(response, cls=DecimalEncoder),
             "headers": {
                 "Access-Control-Allow-Headers": "*",
                 "Access-Control-Allow-Origin": "*",
@@ -622,7 +627,7 @@ def handler(event, context):
         }
 
     except Exception as e:
-            logger.warning("Error: %s: %s", e)
+            logger.error("Error: %s", e)
             return {
             "statusCode": 500,
             "body": json.dumps({"error": str(e)}),

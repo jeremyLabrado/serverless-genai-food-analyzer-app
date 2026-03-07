@@ -49,19 +49,17 @@ def call_bedrock_thread(prompt, model_id, accept, content_type):
             "cfgScale": 8.0,
             "seed": 0
         }
-    ],
-    "cfg_scale": 10,
-    "seed": 0,
-    "steps": 35,
-    "samples" : 1,
-    "style_preset" : "photographic"
     })
 
     response = bedrock_rt.invoke_model(
-        body=body, modelId=model_id, accept=accept, contentType=content_type
+        body=body,
+        modelId=model_id,
+        accept=accept,
+        contentType=content_type,
+        performanceConfigLatency='standard',
     )
     response_body = json.loads(response.get("body").read())
-    base64_image = response_body.get("artifacts")[0].get("base64")
+    base64_image = response_body.get("images")[0]
     return base64_image
 
 def upload_image_to_s3(image_bytes):
@@ -73,7 +71,7 @@ def upload_image_to_s3(image_bytes):
         s3_key = "img/" + file_name
         s3.put_object(Body=image_data, Bucket=S3_BUCKET_NAME, Key=s3_key)
         list_url_s3.append(f"img/{file_name}")
-        print("Uploaded image:", file_name)
+        logger.debug("Uploaded image: {}".format(file_name))
 
     return list_url_s3
 
@@ -153,7 +151,7 @@ def generate_images_recipes(prompt_list:list):
    
     accept = "application/json"
     content_type = "application/json"
-    model_id = 'stability.stable-diffusion-xl-v1'
+    model_id = 'amazon.nova-canvas-v1:0'
     
     partial_generate_image = partial(
         call_bedrock_thread,
@@ -162,7 +160,7 @@ def generate_images_recipes(prompt_list:list):
         content_type=content_type
     )
 
-    print("Generating images with SDXL model %s", model_id)
+    logger.debug(f"Generating images with Nova Canvas model {model_id}")
     
     
     with concurrent.futures.ThreadPoolExecutor() as executor:
@@ -196,7 +194,11 @@ def generate_answer(prompt:str, model_id:str, claude_config:dict,system_prompt:s
                           {"role": "assistant", "content": "The answer is"}]}
     
     body={**message,**claude_config, "system": system_prompt}
-    response = bedrock_rt.invoke_model(modelId=model_id, body=json.dumps(body))
+    response = bedrock_rt.invoke_model(
+        modelId=model_id,
+        body=json.dumps(body),
+        performanceConfigLatency='standard'
+    )
     response = json.loads(response['body'].read().decode('utf-8'))
     if post_process:
         formated_response= post_process_answer(response['content'][0]['text'])

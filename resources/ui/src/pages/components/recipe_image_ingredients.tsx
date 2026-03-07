@@ -14,7 +14,7 @@ import { JourneyProgress } from "./journey-progress";
 import { getRandomFunFact } from "../../utils/fun-facts";
 
 interface RecipeImageIngredientsProps {
-  img: string;
+  images: string[];
   language: string;
   recipeContext?: {
     time?: string;
@@ -26,13 +26,13 @@ interface RecipeImageIngredientsProps {
 }
 
 const RecipeImageIngredients: React.FC<RecipeImageIngredientsProps> = ({
-  img,
+  images,
   language,
   recipeContext,
   onRecipePropositionsDone,
 }) => {
   const currentTranslations = customTranslations[language];
-  const [loadingImageIngredients, setLoadingImageIngredients] = useState(true); // Added loading state
+  const [loadingImageIngredients, setLoadingImageIngredients] = useState(true);
   const [imageIngredientsResponse, setImageIngredientsResponse] = useState<
     any[]
   >([]);
@@ -64,7 +64,7 @@ const RecipeImageIngredients: React.FC<RecipeImageIngredientsProps> = ({
       try {
         setResponseReceived(false);
         const body = {
-          list_images_base64: [img],
+          list_images_base64: images,
           language: language,
         };
 
@@ -83,7 +83,7 @@ const RecipeImageIngredients: React.FC<RecipeImageIngredientsProps> = ({
     };
 
     fetchData();
-  }, [img, language]);
+  }, [images, language]);
 
   return (
     <TextContent>
@@ -98,11 +98,9 @@ const RecipeImageIngredients: React.FC<RecipeImageIngredientsProps> = ({
         }}>
           <div style={{ textAlign: "center", marginBottom: "24px" }}>
             <div style={{ fontSize: "3rem", marginBottom: "12px" }}>🤖</div>
-{/* nosemgrep: jsx-not-internationalized */}
             <h3 style={{ fontSize: "1.3rem", color: "#333", margin: "0 0 8px 0" }}>
               AI is working its magic
             </h3>
-{/* nosemgrep: jsx-not-internationalized */}
             <p style={{ color: "#666", fontSize: "0.9rem", margin: 0 }}>
               Analyzing your fridge...
             </p>
@@ -118,28 +116,24 @@ const RecipeImageIngredients: React.FC<RecipeImageIngredientsProps> = ({
             <SpaceBetween size="xs">
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ fontSize: "1.2rem" }}>{loadingStep >= 0 ? "✅" : "⏳"}</span>
-{/* nosemgrep: jsx-not-internationalized */}
                 <span style={{ color: loadingStep >= 0 ? "#00C853" : "#999" }}>
                   Analyzing ingredients
                 </span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ fontSize: "1.2rem" }}>{loadingStep >= 1 ? "✅" : "⏳"}</span>
-{/* nosemgrep: jsx-not-internationalized */}
                 <span style={{ color: loadingStep >= 1 ? "#00C853" : "#999" }}>
                   Matching to recipes
                 </span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ fontSize: "1.2rem" }}>{loadingStep >= 2 ? "✅" : "⏳"}</span>
-{/* nosemgrep: jsx-not-internationalized */}
                 <span style={{ color: loadingStep >= 2 ? "#00C853" : "#999" }}>
                   Checking your preferences
                 </span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <span style={{ fontSize: "1.2rem" }}>{loadingStep >= 3 ? "✅" : "⏳"}</span>
-{/* nosemgrep: jsx-not-internationalized */}
                 <span style={{ color: loadingStep >= 3 ? "#00C853" : "#999" }}>
                   Optimizing for your goals
                 </span>

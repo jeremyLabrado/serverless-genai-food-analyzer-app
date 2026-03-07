@@ -23,7 +23,7 @@ import { RetentionDays } from "aws-cdk-lib/aws-logs";
 import { IUserPool } from "aws-cdk-lib/aws-cognito";
 import { Construct } from "constructs";
 import * as path from "path";
-import { HttpOrigin } from "aws-cdk-lib/aws-cloudfront-origins";
+import { HttpOrigin, FunctionUrlOrigin } from "aws-cdk-lib/aws-cloudfront-origins";
 import { AddBehaviorOptions } from "aws-cdk-lib/aws-cloudfront";
 import * as cdk from "aws-cdk-lib";
 import { FoodAnalyzerDashBoard } from "./dashboard";
@@ -73,24 +73,6 @@ export class FoodAnalyzerStack extends Stack {
         Stack.of(this).region
       }:094274105915:layer:AWSLambdaPowertoolsTypeScriptV2:2`
     );
-
-    // boto3 and requests are included in Python 3.12 runtime by default
-    // const boto3Layer = lambda.LayerVersion.fromLayerVersionArn(
-    //   this,
-    //   "boto3-layer",
-    //   `arn:aws:lambda:${
-    //     Stack.of(this).region
-    //   }:770693421928:layer:Klayers-p312-boto3:5`
-    // );
-
-    // requests-html requires additional dependencies, using PowerTools only
-    // const requestsLayer = lambda.LayerVersion.fromLayerVersionArn(
-    //   this,
-    //   "requests-layer",
-    //   `arn:aws:lambda:${
-    //     Stack.of(this).region
-    //   }:017000801446:layer:AWSLambdaPowertoolsPythonV2-Extras:56`
-    // );
 
     const openFoodFactsProductsTable = new dynamodb.Table(this, "allProductsOpenFoodFactsTable", {
       partitionKey: {
@@ -306,6 +288,18 @@ export class FoodAnalyzerStack extends Stack {
       ],
     });
 
+    // WAF logging to CloudWatch (for debugging)
+    const wafLogGroup = new logs.LogGroup(this, "WAFLogGroup", {
+      logGroupName: `aws-waf-logs-FoodAnalyzer-${Aws.REGION}`,
+      retention: logs.RetentionDays.ONE_MONTH,
+    });
+
+    const wafLogging = new wafv2.CfnLoggingConfiguration(this, "WAFLogging", {
+      logDestinationConfigs: [wafLogGroup.logGroupArn],
+      resourceArn: webAcl.attrArn,
+    });
+    wafLogging.node.addDependency(wafLogGroup);
+
     // CloudFront access logging bucket (AwsSolutions-CFR3)
     const cfLogsBucket = new s3.Bucket(this, "CloudFrontLogsBucket", {
       enforceSSL: true,
@@ -409,7 +403,7 @@ export class FoodAnalyzerStack extends Stack {
         environment: {
           POWERTOOLS_SERVICE_NAME: "food-lens",
           POWERTOOLS_LOG_LEVEL: "DEBUG",
-          API_URL: "https://world.openfoodfacts.net",
+          API_URL: "https://world.openfoodfacts.org",
           LANGUAGE: "French",
           PRODUCT_TABLE_NAME: productsTable.tableName,
           OPEN_FOOD_FACTS_TABLE_NAME: openFoodFactsProductsTable.tableName,
@@ -610,7 +604,7 @@ export class FoodAnalyzerStack extends Stack {
           __dirname,
           "../lambda/barcode_product_summary/index.ts"
         ),
-        runtime: lambda.Runtime.NODEJS_20_X,
+        runtime: lambda.Runtime.NODEJS_24_X,
         role: basicLambdaRole,
         timeout: Duration.minutes(10),
         layers: [powerToolsTypeScriptLayer],
@@ -639,7 +633,7 @@ export class FoodAnalyzerStack extends Stack {
       "recipeStepByStepFunction",
       {
         entry: path.join(__dirname, "../lambda/recipe_step_by_step/index.ts"),
-        runtime: lambda.Runtime.NODEJS_20_X,
+        runtime: lambda.Runtime.NODEJS_24_X,
         role: basicLambdaRole,
         timeout: Duration.minutes(10),
         layers: [powerToolsTypeScriptLayer],
@@ -744,25 +738,7 @@ export class FoodAnalyzerStack extends Stack {
       }
     );
 
-    authFunction.addToRolePolicy(
-      new iam.PolicyStatement({
-        sid: "AllowInvokeFunctionUrl",
-        effect: iam.Effect.ALLOW,
-        actions: ["lambda:InvokeFunctionUrl"],
-        resources: [
-          ingredientsFunctionUrl.functionArn,
-          recipeImageIngredientsFunctionUrl.functionArn,
-          barcodeProductSummaryFunctionUrl.functionArn,
-          barcodeImageFunctionUrl.functionArn,
-          recipeImageIngredientsFunctionUrl.functionArn,
-          recipeProposalsFunctionUrl.functionArn,
-          getStepsRecipeeFunctionUrl.functionArn,
-        ],
-        conditions: {
-          StringEquals: { "lambda:FunctionUrlAuthType": "AWS_IAM" },
-        },
-      })
-    );
+    // OAC handles Lambda URL invocation permissions via resource-based policy
 
     authFunction.addToRolePolicy(
       new iam.PolicyStatement({
@@ -778,20 +754,37 @@ export class FoodAnalyzerStack extends Stack {
 
     const cachePolicy = new cloudfront.CachePolicy(
       this,
-      "CachingDisabledButWithAuth",
+      "ApiCachePolicy",
       {
-        defaultTtl: Duration.minutes(0),
-        minTtl: Duration.minutes(0),
-        maxTtl: Duration.minutes(1),
+        cachePolicyName: `ApiCache-${Aws.STACK_NAME}`,
+        defaultTtl: Duration.seconds(0),
+        minTtl: Duration.seconds(0),
+        maxTtl: Duration.seconds(1),
         headerBehavior:
           cloudfront.CacheHeaderBehavior.allowList("Authorization"),
       }
     );
 
+    // Forward all viewer headers EXCEPT Authorization to origin.
+    // Authorization is in the cache policy (so Lambda@Edge receives it for JWT verification).
+    // OAC signing happens last and overrides any Authorization header.
+    const apiOriginRequestPolicy = new cloudfront.OriginRequestPolicy(
+      this,
+      "ApiOriginRequestPolicy",
+      {
+        originRequestPolicyName: `ApiORP-${Aws.STACK_NAME}`,
+        headerBehavior:
+          cloudfront.OriginRequestHeaderBehavior.denyList("Authorization"),
+      }
+    );
+
+    // ALL_VIEWER forwards all viewer headers (including Authorization) to Lambda@Edge.
+    // Applied BEFORE Lambda@Edge and NOT re-applied after.
+    // Cache policy has no headers, so it won't re-inject the viewer's JWT.
     const commonBehaviorOptions: AddBehaviorOptions = {
       viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.HTTPS_ONLY,
       cachePolicy: cachePolicy,
-      originRequestPolicy: cloudfront.OriginRequestPolicy.CORS_CUSTOM_ORIGIN,
+      originRequestPolicy: apiOriginRequestPolicy,
       responseHeadersPolicy:
         cloudfront.ResponseHeadersPolicy
           .CORS_ALLOW_ALL_ORIGINS_WITH_PREFLIGHT_AND_SECURITY_HEADERS,
@@ -811,48 +804,57 @@ export class FoodAnalyzerStack extends Stack {
 
     distribution.addBehavior(
       "/fetchIngredients/*",
-      new HttpOrigin(Fn.select(2, Fn.split("/", ingredientsFunctionUrl.url))),
+      FunctionUrlOrigin.withOriginAccessControl(ingredientsFunctionUrl),
       getBehaviorOptions
     );
 
     distribution.addBehavior(
       "/fetchSummary",
-      new HttpOrigin(
-        Fn.select(2, Fn.split("/", barcodeProductSummaryFunctionUrl.url))
-      ),
+      FunctionUrlOrigin.withOriginAccessControl(barcodeProductSummaryFunctionUrl),
       getBehaviorOptions
     );
 
     distribution.addBehavior(
       "/fetchImage",
-      new HttpOrigin(Fn.select(2, Fn.split("/", barcodeImageFunctionUrl.url))),
+      FunctionUrlOrigin.withOriginAccessControl(barcodeImageFunctionUrl),
       getBehaviorOptions
     );
 
     distribution.addBehavior(
       "/fetchImageIngredients",
-      new HttpOrigin(
-        Fn.select(2, Fn.split("/", recipeImageIngredientsFunctionUrl.url))
-      ),
+      FunctionUrlOrigin.withOriginAccessControl(recipeImageIngredientsFunctionUrl),
       getBehaviorOptions
     );
 
     distribution.addBehavior(
       "/fetchRecipePropositions",
-      new HttpOrigin(
-        Fn.select(2, Fn.split("/", recipeProposalsFunctionUrl.url))
-      ),
+      FunctionUrlOrigin.withOriginAccessControl(recipeProposalsFunctionUrl),
       getBehaviorOptions
     );
 
     distribution.addBehavior(
       "/stepsRecipe",
-      new HttpOrigin(
-        Fn.select(2, Fn.split("/", getStepsRecipeeFunctionUrl.url))
-      ),
-
+      FunctionUrlOrigin.withOriginAccessControl(getStepsRecipeeFunctionUrl),
       getBehaviorOptions
     );
+
+    // OAC requires both lambda:InvokeFunctionUrl (added by CDK) AND lambda:InvokeFunction
+    // per AWS docs: https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-lambda.html
+    const lambdaFunctions = [
+      barcodeIngredientsFunction,
+      barcodeProductSummaryFunction,
+      barcodeImageFunction,
+      recipeImageIngredientsFunction,
+      recipeProposalsFunction,
+      recipeStepByStepFunction,
+    ];
+    for (const fn of lambdaFunctions) {
+      fn.addPermission("CloudFrontInvokeFunction", {
+        principal: new iam.ServicePrincipal("cloudfront.amazonaws.com"),
+        action: "lambda:InvokeFunction",
+        sourceArn: `arn:aws:cloudfront::${Aws.ACCOUNT_ID}:distribution/${distribution.distributionId}`,
+      });
+    }
 
     const secret = new secretsmanager.Secret(this, "FoodAnalyserSecrets", {
       secretName: "FoodAnalyzerSecretConfig",

@@ -11,7 +11,7 @@ import Button from "@cloudscape-design/components/button";
 import TextContent from "@cloudscape-design/components/text-content";
 import Spinner from "@cloudscape-design/components/spinner";
 import Alert from "@cloudscape-design/components/alert";
-import { ColumnLayout, Container } from "@cloudscape-design/components";
+import { Container, Tabs, Box, ColumnLayout } from "@cloudscape-design/components";
 import Header from "@cloudscape-design/components/header";
 import { SpaceBetween } from "@cloudscape-design/components";
 import { callAPI } from "../../assets/js/custom";
@@ -89,9 +89,7 @@ const BarcodeIngredients: React.FC<BarcodeIngredientsProps> = ({
   };
 
   const fetchData = async () => {
-    console.log(
-      `call backend with scannedCode: ${productCode} and language: ${language}`
-    );
+
     setApiResponse(null);
     setLoading(true);
 
@@ -103,13 +101,11 @@ const BarcodeIngredients: React.FC<BarcodeIngredientsProps> = ({
       );
 
       if (!response.error) {
-        console.log("response=" + JSON.stringify(response));
         const keyValueArray = Object.entries(response.ingredients_description);
         const newIngredients = keyValueArray.map(([key, value]) => ({
           label: key,
           description: value,
         }));
-        console.log(newIngredients);
 
         setIngredients(newIngredients);
 
@@ -168,11 +164,19 @@ const BarcodeIngredients: React.FC<BarcodeIngredientsProps> = ({
     <TextContent>
       {loading && (
         <div>
-          <SpaceBetween direction="vertical" size="xs">
+          <SpaceBetween direction="vertical" size="m">
             <Alert statusIconAriaLabel="Info" type="info">
-              <strong>{currentTranslations["scan_scanned_label"]}:</strong>{" "}
-              {productCode} | <Spinner />
-              <strong>{currentTranslations["scan_scanning_label"]}...</strong>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "20px" }}>✓</span>
+                <strong>{currentTranslations["scan_scanned_label"]}:</strong>{" "}
+                {productCode}
+              </div>
+            </Alert>
+            <Alert statusIconAriaLabel="Loading" type="info">
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <Spinner />
+                <strong>{currentTranslations["scan_scanning_label"]}...</strong>
+              </div>
             </Alert>
           </SpaceBetween>
         </div>
@@ -276,59 +280,60 @@ const BarcodeIngredients: React.FC<BarcodeIngredientsProps> = ({
                         <br />
                         {currentTranslations["allergen_warning_message"]} {allergensTags.map(tag => tag.replace("en:", "")).join(", ")}
                       </Alert>
-                    </SpaceBetween>
-                  </div>
-                  <ColumnLayout columns={2}>
-                    <Container
-                      footer={
-                        <FlowItems
-                          items={ingredients.map((item, index) => ({
-                            id: `${item.id}`,
-                            content: (
-                              <Popover
-                                dismissButton={false}
-                                position="top"
-                                size="small"
-                                triggerType="custom"
-                                content={item.description}
-                              >
-                                <Button>{item.label}</Button>
-                              </Popover>
-                            ),
-                          }))}
-                        />
-                      }
-                      header={
-                        <Header variant="h2">
-                          {currentTranslations["ingredients_title1"]}
-                        </Header>
-                      }
-                    >
-                      <p className="hint_font">
-                        {" "}
-                        {currentTranslations["ingredients_desc_ingredient"]}
-                      </p>
-                    </Container>
+                    )}
+                  </SpaceBetween>
+                </Container>
 
-                    {additives && (
-                      <Container
-                        footer={
-                          additives.length > 0 ? (
+                {/* Tabs for Ingredients, Additives, and AI Summary */}
+                <Tabs
+                  tabs={[
+                    {
+                      label: currentTranslations["tab_ai_summary"],
+                      id: "summary",
+                      content: (
+                        <IngredientsSummary
+                          productCode={productCode}
+                          language={language}
+                        />
+                      ),
+                    },
+                    {
+                      label: currentTranslations["tab_ingredients"],
+                      id: "ingredients",
+                      content: (
+                        <Container>
+                          <SpaceBetween size="m">
+                            <p className="hint_font">
+                              {currentTranslations["ingredients_desc_ingredient"]}
+                            </p>
                             <FlowItems
-                              items={additives.map((item, index) => ({
-                                id: `${item.id}`,
-                                content: (
-                                  <Popover
-                                    dismissButton={false}
-                                    position="top"
-                                    size="small"
-                                    triggerType="custom"
-                                    content={item.description}
-                                  >
-                                    <Button>{item.label}</Button>
-                                  </Popover>
-                                ),
-                              }))}
+                              items={ingredients.map((item, index) => {
+                                const isAllergenItem = isAllergen(item.label);
+                                return {
+                                  id: `${item.id}`,
+                                  content: (
+                                    <Popover
+                                      dismissButton={false}
+                                      position="top"
+                                      size="small"
+                                      triggerType="custom"
+                                      content={item.description}
+                                    >
+                                      <div style={isAllergenItem ? {
+                                        display: "inline-block",
+                                        padding: "1px",
+                                        borderRadius: "20px",
+                                        background: "linear-gradient(135deg, #dc2626 0%, #ef4444 100%)"
+                                      } : {}}>
+                                        <Button>
+                                          {isAllergenItem && "⚠️ "}
+                                          {item.label}
+                                        </Button>
+                                      </div>
+                                    </Popover>
+                                  ),
+                                };
+                              })}
                             />
                           </SpaceBetween>
                         </Container>

@@ -37,6 +37,8 @@
     "source-map-support": "0.5.21"
   },
   "overrides": {
-    "fast-xml-parser": "5.4.1"
+    "fast-xml-parser": "5.4.1",
+    "braces": "3.0.3",
+    "micromatch": "4.0.8"
   }
 }

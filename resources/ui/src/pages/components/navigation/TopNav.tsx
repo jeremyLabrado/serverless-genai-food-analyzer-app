@@ -37,10 +37,6 @@ const TopNav = ({
           alt: "Smart Groceries",
         },
         onFollow: () => navigate("/"),
-        // logo: {
-        //   src: language === "english" ? flag_en : flag_fr,
-        //   alt: "FoodLens Logo",
-        // },
       }}
       utilities={[
         // Cart button (not on home page)

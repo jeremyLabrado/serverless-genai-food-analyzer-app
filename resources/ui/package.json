@@ -39,5 +39,12 @@
     "sass": "1.76.0",
     "typescript": "5.4.5",
     "vite": "7.1.11"
+  },
+  "overrides": {
+    "braces": "3.0.3",
+    "micromatch": "4.0.8",
+    "@babel/runtime": "7.26.10",
+    "js-yaml": "4.1.1",
+    "mdast-util-to-hast": "13.2.1"
   }
 }

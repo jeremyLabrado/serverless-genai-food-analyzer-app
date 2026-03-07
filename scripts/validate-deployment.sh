@@ -20,8 +20,8 @@ NC='\033[0m' # No Color
 # 1. Check Stack Status
 echo "1️⃣  Checking CloudFormation stack status..."
 STACK_STATUS=$(aws cloudformation describe-stacks \
-  --stack-name "$STACK_NAME" \
-  --region "$REGION" \
+  --stack-name $STACK_NAME \
+  --region $REGION \
   --query 'Stacks[0].StackStatus' \
   --output text 2>/dev/null || echo "NOT_FOUND")
 
@@ -36,11 +36,11 @@ echo ""
 # 2. Check Lambda Functions
 echo "2️⃣  Checking Lambda functions..."
 LAMBDA_FUNCTIONS=$(aws lambda list-functions \
-  --region "$REGION" \
+  --region $REGION \
   --query 'Functions[?contains(FunctionName, `'$STACK_NAME'`)].FunctionName' \
   --output text)
 
-LAMBDA_COUNT=$(echo "$LAMBDA_FUNCTIONS" | wc -w)
+LAMBDA_COUNT=$(echo $LAMBDA_FUNCTIONS | wc -w)
 if [ $LAMBDA_COUNT -ge 6 ]; then
   echo -e "${GREEN}✅ Found $LAMBDA_COUNT Lambda functions${NC}"
 else
@@ -52,11 +52,11 @@ echo ""
 # 3. Check DynamoDB Tables
 echo "3️⃣  Checking DynamoDB tables..."
 TABLES=$(aws dynamodb list-tables \
-  --region "$REGION" \
+  --region $REGION \
   --query 'TableNames[?contains(@, `'$STACK_NAME'`)]' \
   --output text)
 
-TABLE_COUNT=$(echo "$TABLES" | wc -w)
+TABLE_COUNT=$(echo $TABLES | wc -w)
 if [ $TABLE_COUNT -ge 5 ]; then
   echo -e "${GREEN}✅ Found $TABLE_COUNT DynamoDB tables${NC}"
   
@@ -64,8 +64,8 @@ if [ $TABLE_COUNT -ge 5 ]; then
   for table in $TABLES; do
     if [[ $table == *"Cache"* ]]; then
       TTL_STATUS=$(aws dynamodb describe-time-to-live \
-        --table-name "$table" \
-        --region "$REGION" \
+        --table-name $table \
+        --region $REGION \
         --query 'TimeToLiveDescription.TimeToLiveStatus' \
         --output text 2>/dev/null || echo "DISABLED")
       
@@ -85,22 +85,22 @@ echo ""
 # 4. Check CloudFront Distribution
 echo "4️⃣  Checking CloudFront distribution..."
 DISTRIBUTION_ID=$(aws cloudformation describe-stacks \
-  --stack-name "$STACK_NAME" \
-  --region "$REGION" \
+  --stack-name $STACK_NAME \
+  --region $REGION \
   --query 'Stacks[0].Outputs[?contains(OutputKey,`domainName`)].OutputValue' \
   --output text 2>/dev/null)
 
 if [ -n "$DISTRIBUTION_ID" ]; then
   DOMAIN_NAME=$(aws cloudformation describe-stacks \
-    --stack-name "$STACK_NAME" \
-    --region "$REGION" \
+    --stack-name $STACK_NAME \
+    --region $REGION \
     --query 'Stacks[0].Outputs[?OutputKey==`domainName`].OutputValue' \
     --output text)
   
-  echo -e "${GREEN}✅ CloudFront domain: https://"$DOMAIN_NAME"${NC}"
+  echo -e "${GREEN}✅ CloudFront domain: https://$DOMAIN_NAME${NC}"
   
   # Test endpoint
-  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://"$DOMAIN_NAME" --max-time 10)
+  HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" https://$DOMAIN_NAME --max-time 10)
   if [ "$HTTP_CODE" = "200" ]; then
     echo -e "${GREEN}✅ CloudFront responding: HTTP $HTTP_CODE${NC}"
   else
@@ -127,8 +127,8 @@ echo ""
 # 6. Check Cognito User Pool
 echo "6️⃣  Checking Cognito user pool..."
 USER_POOL_ID=$(aws cloudformation describe-stacks \
-  --stack-name "$STACK_NAME" \
-  --region "$REGION" \
+  --stack-name $STACK_NAME \
+  --region $REGION \
   --query 'Stacks[0].Outputs[?contains(OutputKey,`UserPool`)].OutputValue' \
   --output text 2>/dev/null)
 
@@ -137,8 +137,8 @@ if [ -n "$USER_POOL_ID" ]; then
   
   # Check MFA status
   MFA_CONFIG=$(aws cognito-idp describe-user-pool \
-    --user-pool-id "$USER_POOL_ID" \
-    --region "$REGION" \
+    --user-pool-id $USER_POOL_ID \
+    --region $REGION \
     --query 'UserPool.MfaConfiguration' \
     --output text 2>/dev/null || echo "OFF")
   
@@ -157,7 +157,7 @@ echo ""
 echo "7️⃣  Checking CloudWatch logs..."
 LOG_GROUPS=$(aws logs describe-log-groups \
   --log-group-name-prefix "/aws/lambda/$STACK_NAME" \
-  --region "$REGION" \
+  --region $REGION \
   --query 'logGroups[].logGroupName' \
   --output text | wc -w)
 
@@ -171,10 +171,10 @@ echo ""
 # 8. Check Recent Errors
 echo "8️⃣  Checking for recent errors..."
 ERROR_COUNT=$(aws logs filter-log-events \
-  --log-group-name "/aws/lambda/$STACK_NAME-GenerateRecipe*" \
+  --log-group-name /aws/lambda/$STACK_NAME-GenerateRecipe* \
   --filter-pattern "ERROR" \
-  --start-time "$(( $(date +%s) - 3600) ))000" \
-  --region "$REGION" \
+  --start-time $(($(date +%s) - 3600))000 \
+  --region $REGION \
   --query 'events' \
   --output text 2>/dev/null | wc -l)
 
@@ -205,5 +205,5 @@ echo "  3. Test barcode scanning"
 echo "  4. Test cart and checkout flow"
 echo "  5. Monitor CloudWatch dashboard for 24 hours"
 echo ""
-echo "🌐 Application URL: https://"$DOMAIN_NAME""
+echo "🌐 Application URL: https://$DOMAIN_NAME"
 echo ""

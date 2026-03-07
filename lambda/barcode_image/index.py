@@ -87,8 +87,9 @@ def generate_product_summary_prompt(
         Assistant:"""
 
 def get_bedrock_text_reponse(response):
-    response = json.loads(response.get("body").read())
-    text = response.get("completion")
+    response_body = json.loads(response.get("body").read())
+
+    text = response_body.get("content")[0].get("text")
     
 
     return text
@@ -97,10 +98,11 @@ def get_bedrock_text_reponse(response):
 def query_bedrock(payload, model_id):
     try:
         response = bedrock.invoke_model(
-            body=json.dumps(payload),
+            body=payload,
             modelId=model_id,
             contentType="application/json",
             accept="*/*",
+            performanceConfigLatency='standard',
         )
         logger.debug("Bedrock response: %s", response)
         input_token_count = response["ResponseMetadata"]["HTTPHeaders"]["x-amzn-bedrock-input-token-count"]
@@ -109,7 +111,7 @@ def query_bedrock(payload, model_id):
 
         return response
     except ClientError as error:
-        print(error.response)
+        logger.error(error.response)
     return None
 
     
@@ -138,29 +140,27 @@ def get_image(prompt):
             "cfgScale": 8.0,
             "seed": 0
         }
-    ],
-    "cfg_scale": 10,
-    "seed": 0,
-    "steps": 35,
-    "samples" : 1,
-    "style_preset" : "photographic"
     })
 
    
     accept = "application/json"
     content_type = "application/json"
-    model_id = 'stability.stable-diffusion-xl-v1'
+    model_id = 'amazon.nova-canvas-v1:0'
 
-    print("Generating image with SDXL model %s", model_id)
+    logger.debug(f"Generating image with Nova Canvas model {model_id}")
 
     response = bedrock.invoke_model(
-        body=body, modelId=model_id, accept=accept, contentType=content_type
+        body=body,
+        modelId=model_id,
+        accept=accept,
+        contentType=content_type,
+        performanceConfigLatency='standard'
     )
     response_body = json.loads(response.get("body").read())
 
-    base64_image = response_body.get("artifacts")[0].get("base64")
+    base64_image = response_body.get("images")[0]
 
-    print("Successfully generated image withvthe SDXL 1.0 model %s", model_id)
+    logger.debug("Successfully generated image with Nova Canvas model %s", model_id)
 
     return base64_image
     
@@ -203,7 +203,7 @@ def get_product_from_db(product_code, language):
         else:
             return None, None, None
     except Exception as e:
-        print("Error: get_product_from_db", e)
+        logger.error("Error: get_product_from_db", e)
         return None, None, None
 
 def generate_combined_string(obj):
@@ -235,10 +235,9 @@ def calculate_hash(product_code, user_allergies, user_preference_data,  language
 
 def call_bedrock(prompt_text):
 
-    #print(prompt_text)
-    model_id = "anthropic.claude-instant-v1"
-    model_kwargs_text = {
-        "max_tokens_to_sample": 10000,
+    prompt_config = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": 10000,
         "temperature": 0.5,
         "messages": [
             {
@@ -258,8 +257,9 @@ def call_bedrock(prompt_text):
     modelId = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 
     response = get_bedrock_text_reponse(
-            query_bedrock(payload=model_kwargs_text, model_id=model_id)
+            query_bedrock(payload=body, model_id=modelId)
     )
+    
     return response
 
 def upload_image_to_s3(image_bytes):
@@ -299,9 +299,9 @@ def put_product_image_to_dynamodb(product_code, params_hash, image_url):
 
 def get_image_url(product_code, params_hash):
     # Get reference to the table
-    print("PRODUCT_SUMMARY_TABLE_NAME="+PRODUCT_SUMMARY_TABLE_NAME)
+    logger.debug("PRODUCT_SUMMARY_TABLE_NAME="+PRODUCT_SUMMARY_TABLE_NAME)
     table = dynamodb.Table(PRODUCT_SUMMARY_TABLE_NAME)
-    print("GET imageUrl, product_code="+product_code+", params_hash="+params_hash)
+    logger.debug("GET imageUrl, product_code="+product_code+", params_hash="+params_hash)
     # Perform a query to retrieve the item
     response = table.get_item(
         Key={
@@ -366,13 +366,32 @@ def handler(event, context):
             }
 
         else:
-            logger.debug("Product not found in the database")
-            raise ProductNotFoundException("Product not found.")
+            logger.debug("Product not found in the database - needs to be scanned first")
+            return {
+                "statusCode": 202,
+                "body": json.dumps({"message": "Product data is being fetched. Please try again in a moment."}),
+                "headers": {
+                    "Access-Control-Allow-Headers": "*",
+                    "Access-Control-Allow-Origin": "*",
+                    "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
+                },
+            }
+    except ProductNotFoundException as e:
+            logger.error("Product not found: %s", e)
+            return {
+            "statusCode": 404,
+            "body": json.dumps({"error": str(e)}),
+            "headers": {
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Origin": "*",
+                "Access-Control-Allow-Methods": "OPTIONS,POST,GET",
+            },
+        }
     except Exception as e:
-            print("Error:", e)
+            logger.error("Error: %s", e)
             return {
             "statusCode": 500,
-            "body": json.dumps({"error": "Unwnown error"}),
+            "body": json.dumps({"error": "Unknown error"}),
             "headers": {
                 "Access-Control-Allow-Headers": "*",
                 "Access-Control-Allow-Origin": "*",

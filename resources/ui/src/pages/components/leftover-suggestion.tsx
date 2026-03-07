@@ -66,7 +66,6 @@ export const LeftoverSuggestion: React.FC<LeftoverSuggestionProps> = ({
             <h2 style={{ fontSize: "1.5rem", color: "#fff", margin: "0 0 16px 0" }}>
               🎉 Recipe Complete!
             </h2>
-{/* nosemgrep: jsx-not-internationalized */}
             <p style={{ color: "rgba(255, 255, 255, 0.95)", marginBottom: "16px" }}>
               How was {originalRecipe.recipe_title}?
             </p>
@@ -115,7 +114,6 @@ export const LeftoverSuggestion: React.FC<LeftoverSuggestionProps> = ({
               <h3 style={{ fontSize: "1.2rem", margin: "0 0 8px 0", color: "#333" }}>
                 💡 Tomorrow's Lunch Idea
               </h3>
-{/* nosemgrep: jsx-not-internationalized */}
               <p style={{ fontSize: "0.9rem", color: "#666", margin: 0 }}>
                 You'll have leftover {leftoverRecipe.leftover_ingredient} (est. {leftoverRecipe.leftover_amount})
               </p>
@@ -160,7 +158,6 @@ export const LeftoverSuggestion: React.FC<LeftoverSuggestionProps> = ({
                   ))}
                 </ul>
               </div>
-{/* nosemgrep: jsx-not-internationalized */}
               <div style={{
                 fontSize: "0.9rem",
                 fontWeight: "600",
